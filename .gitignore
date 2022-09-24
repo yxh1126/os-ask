@@ -1,6 +1,15 @@
 # Prerequisites
 *.d
 *.bin
+*.gas
+*.lst
+*.sys
+*.img
+*.bim
+*.hrb
+
+# OS build files
+bootpack.nas
 
 # Object files
 *.o
