@@ -10,6 +10,13 @@
 BUILD     = build/
 DEL       = rm -f
 
+# --- Tools / flags for build/libc.o (freestanding C library) ---
+CC        = gcc
+CFLAGS    = -m32 -ffreestanding -fno-pic -fno-pie -fno-stack-protector \
+            -fno-builtin -fno-exceptions -nostdlib -nostdinc \
+            -fno-asynchronous-unwind-tables -Wall -Wextra -O2 \
+            -Wno-array-bounds -Iinclude/
+
 # --- App directories (each has its own Makefile including ../app.mk) ---
 APPS = a hello3 hello4 hello5 winhelo winhelo2 winhelo3 \
        star1 stars stars2 lines walk noodle \
@@ -17,53 +24,55 @@ APPS = a hello3 hello4 hello5 winhelo winhelo2 winhelo3 \
        type iroha chklang notrec bball invader \
        calc tview mmlplay gview
 
-APP_HRBS = a/a.hrb hello3/hello3.hrb hello4/hello4.hrb hello5/hello5.hrb \
-           winhelo/winhelo.hrb winhelo2/winhelo2.hrb winhelo3/winhelo3.hrb \
-           star1/star1.hrb stars/stars.hrb stars2/stars2.hrb \
-           lines/lines.hrb walk/walk.hrb noodle/noodle.hrb \
-           beepdown/beepdown.hrb color/color.hrb color2/color2.hrb \
-           sosu/sosu.hrb sosu2/sosu2.hrb sosu3/sosu3.hrb \
-           type/type.hrb iroha/iroha.hrb chklang/chklang.hrb \
-           notrec/notrec.hrb bball/bball.hrb invader/invader.hrb \
-           calc/calc.hrb tview/tview.hrb mmlplay/mmlplay.hrb gview/gview.hrb
+APP_HRBS = app/a/a.hrb app/hello3/hello3.hrb app/hello4/hello4.hrb app/hello5/hello5.hrb \
+           app/winhelo/winhelo.hrb app/winhelo2/winhelo2.hrb app/winhelo3/winhelo3.hrb \
+           app/star1/star1.hrb app/stars/stars.hrb app/stars2/stars2.hrb \
+           app/lines/lines.hrb app/walk/walk.hrb app/noodle/noodle.hrb \
+           app/beepdown/beepdown.hrb app/color/color.hrb app/color2/color2.hrb \
+           app/sosu/sosu.hrb app/sosu2/sosu2.hrb app/sosu3/sosu3.hrb \
+           app/type/type.hrb app/iroha/iroha.hrb app/chklang/chklang.hrb \
+           app/notrec/notrec.hrb app/bball/bball.hrb app/invader/invader.hrb \
+           app/calc/calc.hrb app/tview/tview.hrb app/mmlplay/mmlplay.hrb app/gview/gview.hrb
 
 # --- Data files copied onto the floppy image ---
-DATA_FILES = euc.txt \
-             mmldata/kirakira.mml mmldata/fujisan.mml \
-             mmldata/daigo.mml mmldata/daiku.mml \
-             pictdata/fujisan.jpg pictdata/night.bmp \
-             nihongo/nihongo.fnt
+DATA_FILES = app/data/textdata/euc.txt \
+             app/data/mmldata/kirakira.mml app/data/mmldata/fujisan.mml \
+             app/data/mmldata/daigo.mml app/data/mmldata/daiku.mml \
+             app/data/pictdata/fujisan.jpg app/data/pictdata/night.bmp \
+             app/data/nihongo/nihongo.fnt
 
 # --- 1. make: build all source code (kernel, libraries, apps) ---
-default: haribote/ipl10.bin haribote/haribote.sys \
-         apilib/apilib.a stdlib/stdlib.a $(APP_HRBS)
+default: kernel/ipl10.bin kernel/haribote.sys \
+         lib/apilib.a lib/stdlib.a $(BUILD)libc.o $(APP_HRBS)
 
-haribote/ipl10.bin haribote/haribote.sys:
-	$(MAKE) -C haribote
+kernel/ipl10.bin kernel/haribote.sys:
+	$(MAKE) -C kernel
 
-apilib/apilib.a:
-	$(MAKE) -C apilib
+lib/apilib.a lib/stdlib.a:
+	$(MAKE) -C lib
 
-stdlib/stdlib.a:
-	$(MAKE) -C stdlib
+# Freestanding C library (memset/vsprintf/etc.) used by kernel and apps.
+# Explicit rule so it builds with proper CFLAGS (fixes -Wbuiltin-declaration-mismatch)
+# and so `make clean` removes it (the implicit cc rule left it orphaned).
+$(BUILD)libc.o: $(BUILD)libc.c Makefile
+	$(CC) $(CFLAGS) -c $< -o $@
 
-$(APP_HRBS): apilib/apilib.a stdlib/stdlib.a haribote/haribote.sys
+$(APP_HRBS): lib/apilib.a lib/stdlib.a kernel/haribote.sys
 	@dir=$(dir $@); $(MAKE) -C $$dir
 
 # --- 2. make img: generate the final boot floppy image ---
 img: haribote.img
 
 haribote.img: default $(DATA_FILES) Makefile build/mkimg.sh
-	$(BUILD)mkimg.sh $@ haribote/ipl10.bin haribote/haribote.sys \
+	$(BUILD)mkimg.sh $@ kernel/ipl10.bin kernel/haribote.sys \
 		$(APP_HRBS) $(DATA_FILES)
 
 # --- 3. make clean: remove all build files and image ---
 clean:
-	$(MAKE) -C haribote clean
-	$(MAKE) -C apilib clean
-	$(MAKE) -C stdlib clean
-	@for d in $(APPS); do $(MAKE) -C $$d clean || true; done
-	-$(DEL) haribote.img
+	$(MAKE) -C kernel clean
+	$(MAKE) -C lib clean
+	@for d in $(APPS); do $(MAKE) -C app/$$d clean || true; done
+	-$(DEL) $(BUILD)libc.o haribote.img
 
 # --- 4. make qemu: boot the image in QEMU ---
 qemu: img
