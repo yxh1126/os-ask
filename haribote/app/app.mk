@@ -20,6 +20,7 @@ BUILD      := $(SRCPATH)build/
 HARIBOTE   := $(SRCPATH)kernel/
 LIBPATH    := $(SRCPATH)lib/
 INCPATH    := $(SRCPATH)include/
+LDPATH     := $(SRCPATH)linker/
 
 # Make the .hrb the default goal when running `make -C <app_dir>`
 .DEFAULT_GOAL := $(APP).hrb
@@ -55,11 +56,11 @@ MALLOC_HEX = 0x$(shell printf "%x" $(MALLOC_DEC))
 # --- Link libraries (all apps need apilib + stdlib + libc) ---
 # Link order: stdlib (printf/exit/malloc) calls apilib (api_*) and libc (vsprintf).
 # Use --start-group to resolve circular dependencies.
-LIB_DEPS = $(LIBPATH)stdlib.a $(LIBPATH)apilib.a $(BUILD)libc.o
+LIB_DEPS = $(LIBPATH)stdlib.a $(LIBPATH)apilib.a $(LIBPATH)libc.o
 LIBS = --start-group $(LIB_DEPS) --end-group
 
 # --- Per-app linker script generated from template ---
-$(APP).ld: $(BUILD)app.ld
+$(APP).ld: $(LDPATH)app.ld
 	sed -e 's/__STACK__/$(STACK_HEX)/' -e 's/__MALLOC__/$(MALLOC_HEX)/' $< > $@
 
 # --- Default target ---

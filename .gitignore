@@ -11,7 +11,7 @@
 # Per-app linker scripts — generated from build/app.ld template by sed at build time.
 # Exception: build/app.ld and build/hrb.ld are source templates, NOT generated.
 *.ld
-!haribote/build/*.ld
+!haribote/linker/*
 
 # Flat binaries — build outputs (ipl10.bin, asmhead.bin, hankaku.bin, etc.)
 # Exception: jpn16v00.bin is a source data file (Japanese font), not a build output.
