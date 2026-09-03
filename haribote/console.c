@@ -4,49 +4,48 @@
 #include <stdio.h>
 #include <string.h>
 
-void console_task(struct SHEET *sheet, unsigned int memtotal)
+void console_task(struct SHEET *sheet, int memtotal)
 {
-	struct TIMER *timer;
 	struct TASK *task = task_now();
 	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
-	int i, fifobuf[128], *fat = (int *) memman_alloc_4k(memman, 4 * 2880);
+	int i, *fat = (int *) memman_alloc_4k(memman, 4 * 2880);
 	struct CONSOLE cons;
 	char cmdline[30];
 	cons.sht = sheet;
-	cons.cur_x = 8;
+	cons.cur_x =  8;
 	cons.cur_y = 28;
 	cons.cur_c = -1;
-	*((int *) 0x0fec) = (int) &cons;
+	task->cons = &cons;
 
-	fifo32_init(&task->fifo, 128, fifobuf, task);
-	timer = timer_alloc();
-	timer_init(timer, &task->fifo, 1);
-	timer_settime(timer, 50);
-	file_readfat(fat, (unsigned char *) (ADR_DISKIMG + 0x000200)); 
+	cons.timer = timer_alloc();
+	timer_init(cons.timer, &task->fifo, 1);
+	timer_settime(cons.timer, 50);
+	file_readfat(fat, (unsigned char *) (ADR_DISKIMG + 0x000200));
 
 	/*显示提示符*/
 	cons_putchar(&cons, '>', 1);
+
 	for (;;) {
 		io_cli();
 		if (fifo32_status(&task->fifo) == 0) {
-			task_sleep(task);  
+			task_sleep(task);
 			io_sti();
 		} else {
 			i = fifo32_get(&task->fifo);
 			io_sti();
 			if (i <= 1) { /*光标用定时器*/
 				if (i != 0) {
-					timer_init(timer, &task->fifo, 0); /*下次置0 */
+					timer_init(cons.timer, &task->fifo, 0); /*下次置0 */
 					if (cons.cur_c >= 0) {
 						cons.cur_c = COL8_FFFFFF;
 					}
 				} else {
-					timer_init(timer, &task->fifo, 1); /*下次置1 */
+					timer_init(cons.timer, &task->fifo, 1); /*下次置1 */
 					if (cons.cur_c >= 0) {
 						cons.cur_c = COL8_000000;
 					}
 				}
-				timer_settime(timer, 50);
+				timer_settime(cons.timer, 50);
 			}
 			if (i == 2) { /*光标ON */
 				cons.cur_c = COL8_FFFFFF;
@@ -164,7 +163,7 @@ void cons_putstr1(struct CONSOLE *cons, char *s, int l)
 	return;
 }
 
-void cons_runcmd(char *cmdline, struct CONSOLE *cons, int *fat, unsigned int memtotal)
+void cons_runcmd(char *cmdline, struct CONSOLE *cons, int *fat, int memtotal)
 {
 	if (strcmp(cmdline, "mem") == 0) {
 		cmd_mem(cons, memtotal);
@@ -183,11 +182,11 @@ void cons_runcmd(char *cmdline, struct CONSOLE *cons, int *fat, unsigned int mem
 	return;
 }
 
-void cmd_mem(struct CONSOLE *cons, unsigned int memtotal)
+void cmd_mem(struct CONSOLE *cons, int memtotal)
 {
 	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
 	char s[60];
-	sprintf(s, "total %dMB\nfree %dKB\n\n", memtotal / (1024 * 1024), memman_total(memman) / 1024);
+	sprintf(s, "total   %dMB\nfree %dKB\n\n", memtotal / (1024 * 1024), memman_total(memman) / 1024);
 	cons_putstr0(cons, s);
 	return;
 }
@@ -217,7 +216,7 @@ void cmd_dir(struct CONSOLE *cons)
 		}
 		if (finfo[i].name[0] != 0xe5) {
 			if ((finfo[i].type & 0x18) == 0) {
-				sprintf(s, "filename.ext %7d\n", finfo[i].size);
+				sprintf(s, "filename.ext   %7d\n", finfo[i].size);
 				for (j = 0; j < 8; j++) {
 					s[j] = finfo[i].name[j];
 				}
@@ -242,7 +241,7 @@ void cmd_type(struct CONSOLE *cons, int *fat, char *cmdline)
 		p = (char *) memman_alloc_4k(memman, finfo->size);
 		file_loadfile(finfo->clustno, finfo->size, p, fat, (char *) (ADR_DISKIMG + 0x003e00));
 		cons_putstr1(cons, p, finfo->size);
-		memman_free_4k(memman, (int) p, finfo->size); 
+		memman_free_4k(memman, (int) p, finfo->size);
 	} else {
 		/*没有找到文件的情况*/
 		cons_putstr0(cons, "File not found.\n");
@@ -273,9 +272,9 @@ int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline)
 
 	/*寻找文件 */
 	finfo = file_search(name, (struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
-	if (finfo == 0 && name[i -1]!= '.') {
+	if (finfo == 0 && name[i - 1] != '.') {
 		/*由于找不到文件，故在文件名后面加上“.hrb”后重新寻找*/
-		name[i ] = '.';
+		name[i    ] = '.';
 		name[i + 1] = 'H';
 		name[i + 2] = 'R';
 		name[i + 3] = 'B';
@@ -293,13 +292,13 @@ int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline)
 			datsiz = *((int *) (p + 0x0010));
 			dathrb = *((int *) (p + 0x0014));
 			q = (char *) memman_alloc_4k(memman, segsiz);
-			*((int *) 0xfe8) = (int) q;
-			set_segmdesc(gdt + 1003, finfo->size - 1, (int) p, AR_CODE32_ER + 0x60);
-			set_segmdesc(gdt + 1004, segsiz - 1,      (int) q, AR_DATA32_RW + 0x60);
+			task->ds_base = (int) q;
+			set_segmdesc(gdt + task->sel / 8 + 1000, finfo->size - 1, (int) p, AR_CODE32_ER + 0x60);
+			set_segmdesc(gdt + task->sel / 8 + 2000, segsiz - 1,      (int) q, AR_DATA32_RW + 0x60);
 			for (i = 0; i < datsiz; i++) {
 				q[esp + i] = p[dathrb + i];
 			}
-			start_app(0x1b, 1003 * 8, esp, 1004 * 8, &(task->tss.esp0));
+			start_app(0x1b, task->sel + 1000 * 8, esp, task->sel + 2000 * 8, &(task->tss.esp0));
 			shtctl = (struct SHTCTL *) *((int *) 0x0fe4);
 			for (i = 0; i < MAX_SHEETS; i++) {
 				sht = &(shtctl->sheets0[i]);
@@ -323,15 +322,15 @@ int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline)
 
 int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax)
 {
-	int ds_base = *((int *) 0xfe8);
 	struct TASK *task = task_now();
-	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
+	int ds_base = task->ds_base;
+	struct CONSOLE *cons = task->cons;
 	struct SHTCTL *shtctl = (struct SHTCTL *) *((int *) 0x0fe4);
 	struct SHEET *sht;
 	int *reg = &eax + 1; /* eax后面的地址*/
 	/*强行改写通过PUSHAD保存的值*/
-	/* reg[0] : EDI, reg[1] : ESI, reg[2] : EBP, reg[3] : ESP */
-	/* reg[4] : EBX, reg[5] : EDX, reg[6] : ECX, reg[7] : EAX */
+		/* reg[0] : EDI,   reg[1] : ESI,   reg[2] : EBP,   reg[3] : ESP */
+		/* reg[4] : EBX,   reg[5] : EDX,   reg[6] : ECX,   reg[7] : EAX */
 	int i;
 
 	if (edx == 1) {
@@ -348,9 +347,9 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 		sht->flags |= 0x10;
 		sheet_setbuf(sht, (char *) ebx + ds_base, esi, edi, eax);
 		make_window8((char *) ebx + ds_base, esi, edi, (char *) ecx + ds_base, 0);
-		sheet_slide(sht, 100, 50);
-		sheet_updown(sht, 3); /*背景层高度3位于task_a之上*/
-		reg[7] = (int) sht; 
+		sheet_slide(sht, (shtctl->xsize - esi) / 2, (shtctl->ysize - edi) / 2);
+		sheet_updown(sht, shtctl->top); /*将窗口图层高度指定为当前鼠标所在图层的高度，鼠标移到上层*/
+		reg[7] = (int) sht;
 	} else if (edx == 6) {
 		sht = (struct SHEET *) (ebx & 0xfffffffe);
 		putfonts8_asc(sht->buf, sht->bxsize, esi, edi, eax, (char *) ebp + ds_base);
@@ -420,7 +419,7 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 				return 0;
 			}
 		}
-	} else if (edx == 16) { 
+	} else if (edx == 16) {
 		reg[7] = (int) timer_alloc();
 		((struct TIMER *) reg[7])->flags2 = 1; /*允许自动取消*/
 	} else if (edx == 17) {
@@ -429,14 +428,26 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 		timer_settime((struct TIMER *) ebx, eax);
 	} else if (edx == 19) {
 		timer_free((struct TIMER *) ebx);
+	} else if (edx == 20) {
+		if (eax == 0) {
+			i = io_in8(0x61);
+			io_out8(0x61, i & 0x0d);
+		} else {
+			i = 1193180000 / eax;
+			io_out8(0x43, 0xb6);
+			io_out8(0x42, i & 0xff);
+			io_out8(0x42, i >> 8);
+			i = io_in8(0x61);
+			io_out8(0x61, (i | 0x03) & 0x0f);
+		}
 	}
 	return 0;
 }
 
 int *inthandler0c(int *esp)
 {
-	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
 	struct TASK *task = task_now();
+	struct CONSOLE *cons = task->cons;
 	char s[30];
 	cons_putstr0(cons, "\nINT 0C :\n Stack Exception.\n");
 	sprintf(s, "EIP = %08X\n", esp[11]);
@@ -446,8 +457,8 @@ int *inthandler0c(int *esp)
 
 int *inthandler0d(int *esp)
 {
-	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
 	struct TASK *task = task_now();
+	struct CONSOLE *cons = task->cons;
 	char s[30];
 	cons_putstr0(cons, "\nINT 0D :\n General Protected Exception.\n");
 	sprintf(s, "EIP = %08X\n", esp[11]);
