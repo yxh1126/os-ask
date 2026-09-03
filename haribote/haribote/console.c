@@ -347,7 +347,6 @@ int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline)
 {
 	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
 	struct FILEINFO *finfo;
-	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;
 	char name[18], *p, *q;
 	struct TASK *task = task_now();
 	int i, segsiz, datsiz, esp, dathrb, appsiz;
@@ -570,13 +569,13 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 		fh = &task->fhandle[i];
 		reg[7] = 0;
 		if (i < 8) {
-			finfo = file_search((char *) ebx + ds_base, (struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
+			finfo = file_search((char *) ebx + ds_base,
+					(struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
 			if (finfo != 0) {
 				reg[7] = (int) fh;
-				fh->buf = (char *) memman_alloc_4k(memman, finfo->size);
 				fh->size = finfo->size;
 				fh->pos = 0;
-				file_loadfile2(finfo->clustno, &fh->size, task->fat);
+				fh->buf = file_loadfile2(finfo->clustno, &fh->size, task->fat);
 			}
 		}
 	} else if (edx == 22) {

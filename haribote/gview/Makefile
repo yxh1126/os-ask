@@ -1,7 +1,10 @@
+APP      = gview
+STACK    = 4480k
+MALLOC   = 0k
+
 TOOLPATH = ../../z_tools/
 INCPATH  = ../../z_tools/haribote/
 APILIBPATH   = ../apilib/
-STDLIBPATH   = ../stdlib/
 HARIBOTEPATH = ../haribote/
 
 MAKE     = $(TOOLPATH)make.exe -r
@@ -27,41 +30,37 @@ default :
 
 #文件生成规则
 
-$(APP).bim : $(APP).obj $(APILIBPATH)apilib.lib $(STDLIBPATH)stdlib.lib Makefile ../app_make.txt
+$(APP).bim : $(APP).obj bmp.obj jpeg.obj $(APILIBPATH)apilib.lib Makefile
 	$(OBJ2BIM) @$(RULEFILE) out:$(APP).bim map:$(APP).map stack:$(STACK) \
-		$(APP).obj $(APILIBPATH)apilib.lib $(STDLIBPATH)stdlib.lib
+		$(APP).obj jpeg.obj bmp.obj $(APILIBPATH)apilib.lib
 
-$(STDAPP).bim : $(APP).obj $(STDLIBPATH)stdlib.lib Makefile ../app_make.txt
-	$(OBJ2BIM) @$(RULEFILE) out:$(APP).bim map:$(APP).map stack:$(STACK) \
-		$(APP).obj $(STDLIBPATH)stdlib.lib
-
-haribote.img : ../haribote/ipl10.bin ../haribote/haribote.sys $(APP).hrb \
-		Makefile ../app_make.txt
+haribote.img : ../haribote/ipl20.bin ../haribote/haribote.sys $(APP).hrb \
+		Makefile
 	$(EDIMG)   imgin:../../z_tools/fdimg0at.tek \
-		wbinimg src:../haribote/ipl10.bin len:512 from:0 to:0 \
+		wbinimg src:../haribote/ipl20.bin len:512 from:0 to:0 \
 		copy from:../haribote/haribote.sys to:@: \
 		copy from:$(APP).hrb to:@: \
 		copy from:../nihongo/nihongo.fnt to:@: \
 		imgout:haribote.img
 
-#一般规则
+# 其他指令
 
-%.gas : %.c ../apilib.h  ../stdlib.h Makefile ../app_make.txt
+%.gas : %.c ../apilib.h Makefile
 	$(CC1) -o $*.gas $*.c
 
-%.nas : %.gas Makefile ../app_make.txt
+%.nas : %.gas Makefile
 	$(GAS2NASK) $*.gas $*.nas
 
-%.obj : %.nas Makefile ../app_make.txt
+%.obj : %.nas Makefile
 	$(NASK) $*.nas $*.obj $*.lst
 
-%.org : %.bim Makefile ../app_make.txt
+%.org : %.bim Makefile
 	$(BIM2HRB) $*.bim $*.org $(MALLOC)
 
-%.hrb : %.org Makefile ../app_make.txt
+%.hrb : %.org Makefile
 	$(BIM2BIN) -osacmp in:$*.org out:$*.hrb
 
-#命令
+# 运行程序
 
 run :
 	$(MAKE) haribote.img
@@ -70,18 +69,17 @@ run :
 
 full :
 	$(MAKE) -C $(APILIBPATH)
-	$(MAKE) -C $(STDLIBPATH)
 	$(MAKE) $(APP).hrb
 
 run_full :
 	$(MAKE) -C $(APILIBPATH)
-	$(MAKE) -C $(STDLIBPATH)
 	$(MAKE) -C ../haribote
 	$(MAKE) run
 
 clean :
 	-$(DEL) *.lst
-	-$(DEL) *.obj
+	-$(DEL) gview.obj
+	-$(DEL) jpeg.obj
 	-$(DEL) *.map
 	-$(DEL) *.bim
 	-$(DEL) *.org
