@@ -85,6 +85,8 @@ $(APP).hrb: $(APP).o $(APP).ld $(LIB_DEPS) Makefile
 endif
 
 # --- Floppy image (single-app boot for testing) ---
+# Uses ipl10.bin (CYLS=20) — see kernel/Makefile for why the original CYLS=10
+# was insufficient and why ipl20.nas is a broken stub.
 haribote.img: $(HARIBOTE)ipl10.bin $(HARIBOTE)haribote.sys $(APP).hrb Makefile
 	$(BUILD)mkimg.sh $@ $(HARIBOTE)ipl10.bin $(HARIBOTE)haribote.sys $(APP).hrb
 

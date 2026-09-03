@@ -56,12 +56,17 @@ struct FILEINFO *file_search(char *name, struct FILEINFO *finfo, int max)
 		}
 	}
 	for (i = 0; i < max; ) {
-		if (finfo->name[0] == 0x00) {
+		if (finfo[i].name[0] == 0x00) {
 			break;
 		}
 		if ((finfo[i].type & 0x18) == 0) {
+			/* name[8] + ext[3] are adjacent (11 contiguous bytes) in the
+			   FAT directory entry. Compare via an unsigned char * view so
+			   gcc -O2 doesn't treat name[j>=8] as out-of-bounds UB and
+			   optimize the whole function away. */
+			unsigned char *fn = finfo[i].name;
 			for (j = 0; j < 11; j++) {
-				if (finfo[i].name[j] != s[j]) {
+				if (fn[j] != s[j]) {
 					goto next;
 				}
 			}

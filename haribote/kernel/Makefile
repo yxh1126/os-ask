@@ -34,11 +34,23 @@ OBJS_BOOTPACK = bootpack.o naskfunc.o hankaku.o graphic.o dsctbl.o \
                mtask.o window.o console.o file.o tek.o
 
 # --- Default ---
+# Use ipl10.nas with CYLS=20 (changed from CYLS=10). The original CYLS=10 only
+# loaded ~180KB (0x2D000), which is not enough to reach nihongo.fnt (at disk
+# offset ~0x39c00 = 228KB). With CYLS=10, file_loadfile2 reads all-zeros for
+# nihongo.fnt, tek_getsize fails the header check, and the console renders no
+# text (langmode=1 with an all-zeros nihongo font). CYLS=20 loads ~360KB.
+# NOTE: ipl20.nas exists in this tree but is a broken stub — its retry loop
+# JMPs to itself without ever calling INT 0x13, so the CPU spins forever.
+# We use ipl10.nas (which has proper multi-sector INT 0x13 read logic) with
+# CYLS bumped to 20.
 default: ipl10.bin haribote.sys
 
 # --- Boot sector (flat binary) ---
 ipl10.bin: ipl10.nas Makefile
 	$(NASM) $(NASMFLAGS_BIN) ipl10.nas -o ipl10.bin
+
+ipl20.bin: ipl20.nas Makefile
+	$(NASM) $(NASMFLAGS_BIN) ipl20.nas -o ipl20.bin
 
 # --- asmhead (flat binary, part of haribote.sys) ---
 asmhead.bin: asmhead.nas Makefile
@@ -79,4 +91,4 @@ clean:
 
 src_only:
 	$(MAKE) clean
-	-$(DEL) ipl10.bin haribote.sys
+	-$(DEL) ipl10.bin ipl20.bin haribote.sys

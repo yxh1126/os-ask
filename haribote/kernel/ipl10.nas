@@ -1,7 +1,9 @@
 ; haribote-ipl
 ; TAB=4
 
-CYLS	EQU		10				; declare CYLS=10
+CYLS	EQU		20				; declare CYLS=20 (was 10; 10 only loads
+									; ~180KB, not enough to reach nihongo.fnt
+									; at disk offset ~0x39c00 = 228KB)
 
 		ORG		0x7c00			; specify the program load address
 
