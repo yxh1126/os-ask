@@ -6,10 +6,10 @@ void HariMain(void)
 	timer = api_alloctimer();
 	api_inittimer(timer, 128);
 	for (i = 20000000; i >= 20000; i -= i / 100) {
-		/* 20KHz～20Hz，即人类可以听到的声音范围*/
-		/* i以1%的速度递减*/
+		/* 20KHz to 20Hz, the audible range for humans */
+		/* i decreases by 1% each step */
 		api_beep(i);
-		api_settimer(timer, 1); /* 0.01秒*/
+		api_settimer(timer, 1); /* 0.01 sec */
 		if (api_getkey(1) != 128) {
 			break;
 		}

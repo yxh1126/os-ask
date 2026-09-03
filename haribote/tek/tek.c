@@ -34,7 +34,7 @@ int tek_getsize(unsigned char *p)
 		size = tek_getnum_s7s(&p);
 	}
 	return size;
-}	  /* （注）memcmp和strncmp差不多，这个函数忽略字符串中的0并一直比较到指定的15个字符为止*/
+}	  /* (Note) memcmp is similar to strncmp; this function ignores zeros in the string and compares up to 15 characters */
 
 int tek_decomp(unsigned char *p, char *q, int size)
 {
@@ -47,9 +47,9 @@ int tek_decomp(unsigned char *p, char *q, int size)
 		err = tek_decode5(size, p, q);
 	}
 	if (err != 0) {
-		return -1; /*失败*/
+		return -1; /* failed */
 	}
-	return 0;	/*成功*/
+	return 0;	/* success */
 }
 
 static int tek_lzrestore_stk1(int srcsiz, UCHAR *src, int outsiz, UCHAR *q)
@@ -278,7 +278,7 @@ static int tek_lzrestore_tek5(int srcsiz, UCHAR *src, int outsiz, UCHAR *outbuf)
 		lp = pb;
 		pb = wrksiz;
 	}
-	wrksiz = 0x180 * sizeof (UINT32) + (0x840 + (0x300 << (lc + lp))) * sizeof (tek_TPRB); /* Å’á15KB, lc+lp=3‚È‚çA36KB */
+	wrksiz = 0x180 * sizeof (UINT32) + (0x840 + (0x300 << (lc + lp))) * sizeof (tek_TPRB); /* minimum 15KB, 36KB if lc+lp=3 */
 	work = (int *) memman_alloc_4k((struct MEMMAN *) MEMMAN_ADDR, wrksiz);
 	if (work == NULL)
 		return -1;

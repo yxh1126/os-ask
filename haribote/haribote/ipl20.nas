@@ -1,82 +1,74 @@
 ; haribote-ipl
 ; TAB=4
 
-CYLS	EQU		20				; 声明CYLS=20
+CYLS	EQU		20				; declare CYLS=20
 
-		ORG		0x7c00			; 指明程序装载地址
+		ORG		0x7c00			; specify the program load address
 
-; 标准FAT12格式软盘专用的代码 Stand FAT12 format floppy code
+; Standard FAT12 format floppy specific code
 
 		JMP		entry
 		DB		0x90
-		DB		"HARIBOTE"		; 启动扇区名称（8字节）
-		DW		512				; 每个扇区（sector）大小（必须512字节）
-		DB		1				; 簇（cluster）大小（必须为1个扇区）
-		DW		1				; FAT起始位置（一般为第一个扇区）
-		DB		2				; FAT个数（必须为2）
-		DW		224				; 根目录大小（一般为224项）
-		DW		2880			; 该磁盘大小（必须为2880扇区1440*1024/512）
-		DB		0xf0			; 磁盘类型（必须为0xf0）
-		DW		9				; FAT的长度（必??9扇区）
-		DW		18				; 一个磁道（track）有几个扇区（必须为18）
-		DW		2				; 磁头数（必??2）
-		DD		0				; 不使用分区，必须是0
-		DD		2880			; 重写一次磁盘大小
-		DB		0,0,0x29		; 意义不明（固定）
-		DD		0xffffffff		; （可能是）卷标号码
-		DB		"HARIBOTEOS "	; 磁盘的名称（必须为11字?，不足填空格）
-		DB		"FAT12   "		; 磁盘格式名称（必??8字?，不足填空格）
-		RESB	18				; 先空出18字节
+		DB		"HARIBOTE"		; boot sector name (8 bytes)
+		DW		512				; size of each sector (must be 512 bytes)
+		DB		1				; cluster size (must be 1 sector)
+		DW		1				; FAT start position (usually the first sector)
+		DB		2				; number of FATs (must be 2)
+		DW		224				; root directory size (usually 224 entries)
+		DW		2880			; disk size (must be 2880 sectors, 1440*1024/512)
+		DB		0xf0			; disk type (must be 0xf0)
+		DW		9				; FAT length (must be 9 sectors)
+		DW		18				; number of sectors per track (must be 18)
+		DW		2				; number of heads (must be 2)
+		DD		0				; no partition, must be 0
+		DD		2880			; rewrite disk size once more
+		DB		0,0,0x29		; meaning unknown (fixed)
+		DD		0xffffffff		; (probably) volume serial number
+		DB		"HARIBOTEOS "	; disk name (must be 11 bytes, padded with spaces)
+		DB		"FAT12   "		; disk format name (must be 8 bytes, padded with spaces)
+		TIMES	18 DB 0			; reserve 18 bytes
 
-; 程序主体
+; Program body
 
 entry:
-		MOV		AX,0			; 初始化寄存器
+		MOV		AX,0			; initialize registers
 		MOV		SS,AX
 		MOV		SP,0x7c00
 		MOV		DS,AX
 
-; 读取磁盘
+; Read disk
 
 		MOV		AX,0x0820
 		MOV		ES,AX
-		MOV		CH,0			; 柱面0
-		MOV		DH,0			; 磁头0
-		MOV		CL,2			; 扇区2
+		MOV		CH,0			; cylinder 0
+		MOV		DH,0			; head 0
+		MOV		CL,2			; sector 2
 readloop:
-		MOV		SI,0			; 记录失败次数寄存器
+		MOV		SI,0			; register to record the number of failures
 retry:
-		MOV		AH,0x02			; AH=0x02 : 读入磁盘
-		MOV		AL,1			; 1个扇区
+		MOV		AH,0x02			; AH=0x02 : read disk
+		MOV		AL,1			; 1 sector
 		MOV		BX,0
-		MOV		DL,0x00			; A驱动器
-		INT		0x13			; 调用磁盘BIOS
-		JNC		next			; 没出错则跳转到fin
-		ADD		SI,1			; 往SI加1
-		CMP		SI,5			; 比较SI与5
-		JAE		error			; SI >= 5 跳转到error
-		MOV		AH,0x00
-		MOV		DL,0x00			; A驱动器
-		INT		0x13			; 重置驱动器
+		MOV		DL,0x00			; drive A
 		JMP		retry
 next:
-		MOV		AX,ES			; 把内存地址后移0x200（512/16十六进制转换）
+		MOV		AX,ES			; shift the memory address back by 0x200 (512/16 hex conversion)
 		ADD		AX,0x0020
-		MOV		ES,AX			; ADD ES,0x020因为没有ADD ES，只能通过AX进行
-		ADD		CL,1			; 往CL里面加1
-		CMP		CL,18			; 比较CL与18
-		JBE		readloop		; CL <= 18 跳转到readloop
+		MOV		ES,AX			; ADD ES,0x020 since there is no ADD ES, do it via AX
+		ADD		CL,1			; add 1 to CL
+		CMP		CL,18			; compare CL with 18
+		JBE		readloop		; jump to readloop if CL <= 18
 		MOV		CL,1
 		ADD		DH,1
 		CMP		DH,2
-		JB		readloop		; DH < 2 跳转到readloop
+		JB		readloop		; jump to readloop if DH < 2
 		MOV		DH,0
 		ADD		CH,1
 		CMP		CH,CYLS
-		JB		readloop		; CH < CYLS 跳转到readloop
+		JB		readloop		; jump to readloop if CH < CYLS
 
-; 读取完毕，跳转到haribote.sys执行！
-		MOV		[0x0ff0],CH		; IPLがどこまで読んだのかをメモ
+; Reading done, jump to haribote.sys to execute!
+		MOV		[0x0ff0],CH		; note how far IPL has read
 		JMP		0xc200
 
 error:
@@ -85,23 +77,23 @@ error:
 		MOV		SI,msg
 putloop:
 		MOV		AL,[SI]
-		ADD		SI,1			; 给SI加1
+		ADD		SI,1			; increment SI by 1
 		CMP		AL,0
 		JE		fin
-		MOV		AH,0x0e			; 显示一个文字
-		MOV		BX,15			; 指定字符颜色
-		INT		0x10			; 调用显卡BIOS
+		MOV		AH,0x0e			; display one character
+		MOV		BX,15			; specify character color
+		INT		0x10			; call video BIOS
 		JMP		putloop
 fin:
-		HLT						; 让CPU停止，等待指令
-		JMP		fin				; 无限循环
+		HLT						; stop CPU, wait for instruction
+		JMP		fin				; infinite loop
 
 msg:
-		DB		0x0a, 0x0a		; 换行两次
+		DB		0x0a, 0x0a		; two newlines
 		DB		"load error"
-		DB		0x0a			; 换行
+		DB		0x0a			; newline
 		DB		0
 
-		RESB	0x7dfe-$		; 填写0x00直到0x001fe
+		TIMES	0x1fe-($-$$) DB 0		; pad with 0x00 until 0x001fe
 
 		DB		0x55, 0xaa

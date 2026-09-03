@@ -1,50 +1,28 @@
-OBJS_API =	stdlib.obj
+# Makefile for stdlib (stdlib/)
+# Builds on Ubuntu using gcc -m32 + ar.
 
-TOOLPATH = ../../z_tools/
-INCPATH  = ../../z_tools/haribote/
+CC        = gcc
+AR        = ar
+DEL       = rm -f
 
-MAKE     = $(TOOLPATH)make.exe -r
-NASK     = $(TOOLPATH)nask.exe
-CC1      = $(TOOLPATH)cc1.exe -I$(INCPATH) -Os -Wall -quiet
-GAS2NASK = $(TOOLPATH)gas2nask.exe -a
-OBJ2BIM  = $(TOOLPATH)obj2bim.exe
-MAKEFONT = $(TOOLPATH)makefont.exe
-BIN2OBJ  = $(TOOLPATH)bin2obj.exe
-BIM2HRB  = $(TOOLPATH)bim2hrb.exe
-RULEFILE = ../haribote.rul
-EDIMG    = $(TOOLPATH)edimg.exe
-IMGTOL   = $(TOOLPATH)imgtol.com
-GOLIB    = $(TOOLPATH)golib00.exe 
-COPY     = copy
-DEL      = del
+BUILD     = ../build/
+INCPATH   = ../build/haribote/
 
-#默认动作
+CFLAGS   = -m32 -ffreestanding -fno-pic -fno-pie -fno-stack-protector \
+           -fno-builtin -fno-exceptions -nostdlib -nostdinc \
+           -fno-asynchronous-unwind-tables -Wall -Wextra -O2 \
+           -I$(INCPATH) -I../
 
-default :
-	$(MAKE) stdlib.lib
+default: stdlib.a
 
-#库生成规则
+stdlib.a: stdlib.o Makefile
+	$(AR) rcs $@ stdlib.o
 
-stdlib.lib : Makefile $(OBJS_API)
-	$(GOLIB) $(OBJS_API) out:stdlib.lib
+%.o: %.c ../stdlib.h ../apilib.h Makefile
+	$(CC) $(CFLAGS) -c $< -o $@
 
-#文件生成规则
+clean:
+	-$(DEL) *.o *.a
 
-%.gas : %.c ../stdlib.h Makefile
-	$(CC1) -o $*.gas $*.c
-
-%.nas : %.gas Makefile
-	$(GAS2NASK) $*.gas $*.nas
-
-%.obj : %.nas Makefile
-	$(NASK) $*.nas $*.obj $*.lst
-
-#命令
-
-clean :
-	-$(DEL) *.lst
-	-$(DEL) *.obj
-
-src_only :
+src_only:
 	$(MAKE) clean
-	-$(DEL) stdlib.lib

@@ -1,6 +1,6 @@
 #include "apilib.h"
 
-int rand(void);		/*产生0～32767之间的随机数*/
+int rand(void);		/* Generate random numbers between 0 and 32767 */
 
 void HariMain(void)
 {
@@ -9,15 +9,15 @@ void HariMain(void)
 	api_initmalloc();
 	buf = api_malloc(150 * 100);
 	win = api_openwin(buf, 150, 100, -1, "stars");
-	api_boxfilwin(win,  6, 26, 143, 93, 0);/*黑色*/
+	api_boxfilwin(win,  6, 26, 143, 93, 0);/* black */
 	for (i = 0; i < 50; i++) {
 		x = (rand() % 137) +  6;
 		y = (rand() %  67) + 26;
-		api_point(win, x, y, 3);/*黄色*/
+		api_point(win, x, y, 3);/* yellow */
 	}
 	for (;;) {
 		if (api_getkey(1) == 0x0a) {
-			break; /*按下回车键则break; */
+			break; /* Break on Enter key */
 		}
 	}
 	api_end();

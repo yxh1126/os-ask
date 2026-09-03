@@ -54,14 +54,14 @@ void HariMain(void)
 
 	init_gdtidt();
 	init_pic();
-	io_sti(); /* IDT/PIC的初始化已经完成，于是开放CPU的中断 */
+	io_sti(); /* IDT/PIC initialization is done, so enable CPU interrupts */
 	fifo32_init(&fifo, 128, fifobuf, 0);
 	*((int *) 0x0fec) = (int) &fifo;
 	init_pit();
 	init_keyboard(&fifo, 256);
 	enable_mouse(&fifo, 512, &mdec);
-	io_out8(PIC0_IMR, 0xf8); /* 设定PIT和PIC1以及键盘为许可(11111000) */
-	io_out8(PIC1_IMR, 0xef); /* 开放鼠标中断(11101111) */
+	io_out8(PIC0_IMR, 0xf8); /* enable PIT, PIC1, and keyboard (11111000) */
+	io_out8(PIC1_IMR, 0xef); /* enable mouse interrupt (11101111) */
 	fifo32_init(&keycmd, 32, keycmd_buf, 0);
 
 	memtotal = memtest(0x00400000, 0xbfffffff);
@@ -80,7 +80,7 @@ void HariMain(void)
 	/* sht_back */
 	sht_back  = sheet_alloc(shtctl);
 	buf_back  = (unsigned char *) memman_alloc_4k(memman, binfo->scrnx * binfo->scrny);
-	sheet_setbuf(sht_back, buf_back, binfo->scrnx, binfo->scrny, -1); /* 无透明色 */
+	sheet_setbuf(sht_back, buf_back, binfo->scrnx, binfo->scrny, -1); /* no transparent color */
 	init_screen8(buf_back, binfo->scrnx, binfo->scrny);
 
 	/* sht_cons */
@@ -90,7 +90,7 @@ void HariMain(void)
 	sht_mouse = sheet_alloc(shtctl);
 	sheet_setbuf(sht_mouse, buf_mouse, 16, 16, 99);
 	init_mouse_cursor8(buf_mouse, 99);
-	mx = (binfo->scrnx - 16) / 2; /* 计算坐标使其位于画面中央 */
+	mx = (binfo->scrnx - 16) / 2; /* compute coordinates so it is centered on screen */
 	my = (binfo->scrny - 28 - 16) / 2;
 
 	sheet_slide(sht_back,  0,  0);
@@ -101,25 +101,25 @@ void HariMain(void)
 	sheet_updown(sht_mouse, 2);
 	keywin_on(key_win);
 
-	/* 为了避免和键盘当前状态冲突，在一开始先进行设置 */
+	/* To avoid conflicting with the current keyboard state, set it up first */
 	fifo32_put(&keycmd, KEYCMD_LED);
 	fifo32_put(&keycmd, key_leds);
 
-	/* 载入nihongo.fnt */
+	/* Load nihongo.fnt */
 	fat = (int *) memman_alloc_4k(memman, 4 * 2880);
 	file_readfat(fat, (unsigned char *) (ADR_DISKIMG + 0x000200));
 
 	finfo = file_search("nihongo.fnt", (struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
 	if (finfo != 0) {
 		i = finfo->size;
-		nihongo = file_loadfile2(finfo->clustno, &i, fat);
+		nihongo = (unsigned char *) file_loadfile2(finfo->clustno, &i, fat);
 	} else {
 		nihongo = (unsigned char *) memman_alloc_4k(memman, 16 * 256 + 32 * 94 * 47);
 		for (i = 0; i < 16 * 256; i++) {
-			nihongo[i] = hankaku[i]; /*没有字库，半角部分直接复制英文字库*/
+			nihongo[i] = hankaku[i]; /* no font library, copy the half-width English font directly */
 		}
 		for (i = 16 * 256; i < 16 * 256 + 32 * 94 * 47; i++) {
-			nihongo[i] = 0xff; /* 没有字库，全角部分以0xff填充 */
+			nihongo[i] = 0xff; /* no font library, fill the full-width part with 0xff */
 		}
 	}
 	*((int *) 0x0fe8) = (int) nihongo;
@@ -127,14 +127,14 @@ void HariMain(void)
 
 	for (;;) {
 		if (fifo32_status(&keycmd) > 0 && keycmd_wait < 0) {
-			/* 如果存在向键盘控制器发送的数据，则发送它 */
+			/* If there is data to send to the keyboard controller, send it */
 			keycmd_wait = fifo32_get(&keycmd);
 			wait_KBC_sendready();
 			io_out8(PORT_KEYDAT, keycmd_wait);
 		}
 		io_cli();
 		if (fifo32_status(&fifo) == 0) {
-			/* FIFO为空，当存在搁置的绘图操作时立即执行*/
+			/* FIFO is empty, when there are pending drawing operations, execute them immediately */
 			if (new_mx >= 0) {
 				io_sti();
 				sheet_slide(sht_mouse, new_mx, new_my);
@@ -150,16 +150,16 @@ void HariMain(void)
 		} else {
 			i = fifo32_get(&fifo);
 			io_sti();
-			if (key_win != 0 && key_win->flags == 0) { /*窗口被关闭*/
-				if (shtctl->top == 1) { /*当画面上只剩鼠标和背景时*/
+			if (key_win != 0 && key_win->flags == 0) { /* window was closed */
+				if (shtctl->top == 1) { /* when only the mouse and background are left on screen */
 					key_win = 0;
 				} else {
 					key_win = shtctl->sheets[shtctl->top - 1];
 					keywin_on(key_win);
 				}
 			}
-			if (256 <= i && i <= 511) { /* 键盘数据*/
-				if (i < 0x80 + 256) { /*将按键编码转换为字符编码*/
+			if (256 <= i && i <= 511) { /* keyboard data */
+				if (i < 0x80 + 256) { /* convert key code to character code */
 					if (key_shift == 0) {
 						s[0] = keytable0[i - 256];
 					} else {
@@ -168,16 +168,16 @@ void HariMain(void)
 				} else {
 					s[0] = 0;
 				}
-				if ('A' <= s[0] && s[0] <= 'Z') { /*当输入字符为英文字母时*/
+				if ('A' <= s[0] && s[0] <= 'Z') { /* when the input character is an English letter */
 					if (((key_leds & 4) == 0 && key_shift == 0) ||
 							((key_leds & 4) != 0 && key_shift != 0)) {
-						s[0] += 0x20; /*将大写字母转换为小写字母*/
+						s[0] += 0x20; /* convert uppercase to lowercase */
 					}
 				}
-				if (s[0] != 0 && key_win != 0) { /*一般字符、退格键、回车键*/
+				if (s[0] != 0 && key_win != 0) { /* normal character, backspace, enter */
 					fifo32_put(&key_win->task->fifo, s[0] + 256);
 				}
-				if (i == 256 + 0x0f && key_win != 0) {	/* Tab键 */
+				if (i == 256 + 0x0f && key_win != 0) {	/* Tab key */
 					keywin_off(key_win);
 					j = key_win->height - 1;
 					if (j == 0) {
@@ -186,16 +186,16 @@ void HariMain(void)
 					key_win = shtctl->sheets[j];
 					keywin_on(key_win);
 				}
-				if (i == 256 + 0x2a) { /*左Shift ON */
+				if (i == 256 + 0x2a) { /* left Shift ON */
 					key_shift |= 1;
 				}
-				if (i == 256 + 0x36) { /*右Shift ON */
+				if (i == 256 + 0x36) { /* right Shift ON */
 					key_shift |= 2;
 				}
-				if (i == 256 + 0xaa) { /*左Shift OFF */
+				if (i == 256 + 0xaa) { /* left Shift OFF */
 					key_shift &= ~1;
 				}
-				if (i == 256 + 0xb6) { /*右Shift OFF */
+				if (i == 256 + 0xb6) { /* right Shift OFF */
 					key_shift &= ~2;
 				}
 				if (i == 256 + 0x3a) {	/* CapsLock */
@@ -217,11 +217,11 @@ void HariMain(void)
 					task = key_win->task;
 					if (task != 0 && task->tss.ss0 != 0) {
 						cons_putstr0(task->cons, "\nBreak(key) :\n");
-						io_cli(); /*强制结束处理时禁止任务切换*/
+						io_cli(); /* disable task switching during forced termination */
 						task->tss.eax = (int) &(task->tss.esp0);
 						task->tss.eip = (int) asm_end_app;
 						io_sti();
-						task_run(task, -1, 0); /*为了确实执行结束处理，如果处于休眠状态则唤醒*/
+						task_run(task, -1, 0); /* to ensure the termination process runs, wake it if it is sleeping */
 					}
 				}
 				if (i == 256 + 0x3c && key_shift != 0) {	/* Shift+F2 */
@@ -236,16 +236,16 @@ void HariMain(void)
 				if (i == 256 + 0x57) {	/* F11 */
 					sheet_updown(shtctl->sheets[1], shtctl->top - 1);
 				}
-				if (i == 256 + 0xfa) { /*键盘成功接收到数据*/
+				if (i == 256 + 0xfa) { /* keyboard successfully received data */
 					keycmd_wait = -1;
 				}
-				if (i == 256 + 0xfe) { /*键盘没有成功接收到数据*/
+				if (i == 256 + 0xfe) { /* keyboard failed to receive data */
 					wait_KBC_sendready();
 					io_out8(PORT_KEYDAT, keycmd_wait);
 				}
-			} else if (512 <= i && i <= 767) { /* 鼠标数据*/
+			} else if (512 <= i && i <= 767) { /* mouse data */
 				if (mouse_decode(&mdec, i - 512) != 0) {
-					/* 已经收集了3字节的数据，移动光标 */
+					/* 3 bytes of data collected, move the cursor */
 					mx += mdec.x;
 					my += mdec.y;
 					if (mx < 0) {
@@ -262,10 +262,10 @@ void HariMain(void)
 					}
 					new_mx = mx;
 					new_my = my;
-					if ((mdec.btn & 0x01) != 0) { /* 按下左键 */
+					if ((mdec.btn & 0x01) != 0) { /* left button pressed */
 						if (mmx < 0) {
-							/*如果处于通常模式*/
-							/*按照从上到下的顺序寻找鼠标所指向的图层*/
+							/* if in normal mode */
+							/* search for the sheet the mouse points to, from top to bottom */
 							for (j = shtctl->top - 1; j > 0; j--) {
 								sht = shtctl->sheets[j];
 								x = mx - sht->vx0;
@@ -279,24 +279,24 @@ void HariMain(void)
 											keywin_on(key_win);
 										}
 										if (3 <= x && x < sht->bxsize - 3 && 3 <= y && y < 21) {
-											mmx = mx; /*进入窗口移动模式*/
+											mmx = mx; /* enter window move mode */
 											mmy = my;
 											mmx2 = sht->vx0;
 											new_wy = sht->vy0;
 										}
 										if (sht->bxsize - 21 <= x && x < sht->bxsize - 5 && 5 <= y && y < 19) {
-											/*点击“×”按钮*/
-											if ((sht->flags & 0x10) != 0) { /*该窗口是否为应用程序窗口？*/
+											/* clicked the "x" button */
+											if ((sht->flags & 0x10) != 0) { /* is this window an application window? */
 												task = sht->task;
 												cons_putstr0(task->cons, "\nBreak(mouse) :\n");
-												io_cli(); /*强制结束处理时禁止任务切换*/
+												io_cli(); /* disable task switching during forced termination */
 												task->tss.eax = (int) &(task->tss.esp0);
 												task->tss.eip = (int) asm_end_app;
 												io_sti();
 												task_run(task, -1, 0);
-											} else { /*命令行窗口*/
+											} else { /* console window */
 												task = sht->task;
-												sheet_updown(sht, -1); /*暂且隐藏该图层*/
+												sheet_updown(sht, -1); /* hide this sheet for now */
 												keywin_off(key_win);
 												key_win = shtctl->sheets[shtctl->top - 1];
 												keywin_on(key_win);
@@ -310,27 +310,27 @@ void HariMain(void)
 								}
 							}
 						} else {
-							/*如果处于窗口移动模式*/
-							x = mx - mmx; /*计算鼠标指针移动量*/
+							/* if in window move mode */
+							x = mx - mmx; /* calculate the mouse pointer movement amount */
 							y = my - mmy;
 							new_wx = (mmx2 + x + 2) & ~3;
 							new_wy = new_wy + y;
 							mmy = my;
 						}
 					} else {
-						/*没有按下左键*/
-						mmx = -1; /*切换到一般模式*/
+						/* left button not pressed */
+						mmx = -1; /* switch to normal mode */
 						if (new_wx != 0x7fffffff) {
-							sheet_slide(sht, new_wx, new_wy); /*固定图层位置*/
+							sheet_slide(sht, new_wx, new_wy); /* fix the sheet position */
 							new_wx = 0x7fffffff;
 						}
 					}
 				}
-			} else if (768 <= i && i <= 1023) { /*命令行窗口关闭处理*/
+			} else if (768 <= i && i <= 1023) { /* console window close processing */
 				close_console(shtctl->sheets0 + (i - 768));
 			} else if (1024 <= i && i <= 2023) {
 				close_constask(taskctl->tasks0 + (i - 1024));
-			} else if (2024 <= i && i <= 2279) { /*只关闭命令行窗口*/
+			} else if (2024 <= i && i <= 2279) { /* close only the console window */
 				sht2 = shtctl->sheets0 + (i - 2024);
 				memman_free_4k(memman, (int) sht2->buf, 256 * 165);
 				sheet_free(sht2);
@@ -343,7 +343,7 @@ void keywin_off(struct SHEET *key_win)
 {
 	change_wtitle8(key_win, 0);
 	if ((key_win->flags & 0x20) != 0) {
-		fifo32_put(&key_win->task->fifo, 3); /*命令行窗口光标OFF */
+		fifo32_put(&key_win->task->fifo, 3); /* console window cursor OFF */
 	}
 	return;
 }
@@ -352,7 +352,7 @@ void keywin_on(struct SHEET *key_win)
 {
 	change_wtitle8(key_win, 1);
 	if ((key_win->flags & 0x20) != 0) {
-		fifo32_put(&key_win->task->fifo, 2); /*命令行窗口光标ON */
+		fifo32_put(&key_win->task->fifo, 2); /* console window cursor ON */
 	}
 	return;
 }
@@ -383,11 +383,11 @@ struct SHEET *open_console(struct SHTCTL *shtctl, unsigned int memtotal)
 	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
 	struct SHEET *sht = sheet_alloc(shtctl);
 	unsigned char *buf = (unsigned char *) memman_alloc_4k(memman, 256 * 165);
-	sheet_setbuf(sht, buf, 256, 165, -1); /*无透明色*/
+	sheet_setbuf(sht, buf, 256, 165, -1); /* no transparent color */
 	make_window8(buf, 256, 165, "console", 0);
 	make_textbox8(sht, 8, 28, 240, 128, COL8_000000);
 	sht->task = open_constask(sht, memtotal);
-	sht->flags |= 0x20;	/*有光标*/
+	sht->flags |= 0x20;	/* has cursor */
 	return sht;
 }
 
@@ -397,7 +397,7 @@ void close_constask(struct TASK *task)
 	task_sleep(task);
 	memman_free_4k(memman, task->cons_stack, 64 * 1024);
 	memman_free_4k(memman, (int) task->fifo.buf, 128 * 4);
-	task->flags = 0; /*用来替代task_free(task); */
+	task->flags = 0; /* used in place of task_free(task); */
 	return;
 }
 

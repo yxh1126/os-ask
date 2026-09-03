@@ -1,11 +1,11 @@
 /* asmhead.nas */
 struct BOOTINFO { /* 0x0ff0-0x0fff */
-	char cyls; /* 启动区读磁盘读到此为止 */
-	char leds; /* 启动时键盘的LED的状态 */
-	char vmode; /* 显卡模式为多少位彩色 */
+	char cyls; /* boot sector read disk up to here */
+	char leds; /* keyboard LED state at boot */
+	char vmode; /* video mode, how many bits per color */
 	char reserve;
-	short scrnx, scrny; /* 画面分辨率 */
-	char *vram;
+	short scrnx, scrny; /* screen resolution */
+	unsigned char *vram;
 };
 #define ADR_BOOTINFO	0x00000ff0
 #define ADR_DISKIMG		0x00100000
@@ -51,12 +51,12 @@ int fifo32_status(struct FIFO32 *fifo);
 void init_palette(void);
 void set_palette(int start, int end, unsigned char *rgb);
 void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, int x1, int y1);
-void init_screen8(char *vram, int x, int y);
-void putfont8(char *vram, int xsize, int x, int y, char c, char *font);
-void putfonts8_asc(char *vram, int xsize, int x, int y, char c, unsigned char *s);
-void init_mouse_cursor8(char *mouse, char bc);
-void putblock8_8(char *vram, int vxsize, int pxsize,
-	int pysize, int px0, int py0, char *buf, int bxsize);
+void init_screen8(unsigned char *vram, int x, int y);
+void putfont8(unsigned char *vram, int xsize, int x, int y, char c, char *font);
+void putfonts8_asc(unsigned char *vram, int xsize, int x, int y, char c, unsigned char *s);
+void init_mouse_cursor8(unsigned char *mouse, char bc);
+void putblock8_8(unsigned char *vram, int vxsize, int pxsize,
+	int pysize, int px0, int py0, unsigned char *buf, int bxsize);
 #define COL8_000000		0
 #define COL8_FF0000		1
 #define COL8_00FF00		2
@@ -132,12 +132,12 @@ void enable_mouse(struct FIFO32 *fifo, int data0, struct MOUSE_DEC *mdec);
 int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat);
 
 /* memory.c */
-#define MEMMAN_FREES		4090	/* ����Ŗ�32KB */
+#define MEMMAN_FREES		4090	/* about 32KB */
 #define MEMMAN_ADDR			0x003c0000
-struct FREEINFO {	/* ������� */
+struct FREEINFO {	/* free memory block info */
 	unsigned int addr, size;
 };
-struct MEMMAN {		/* �������Ǘ� */
+struct MEMMAN {		/* memory management */
 	int frees, maxfrees, lostsize, losts;
 	struct FREEINFO free[MEMMAN_FREES];
 };
@@ -196,8 +196,8 @@ int timer_cancel(struct TIMER *timer);
 void timer_cancelall(struct FIFO32 *fifo);
 
 /* mtask.c */
-#define MAX_TASKS 1000	/*最大任务数量*/
-#define TASK_GDT0 3			/*定义从GDT的几号开始分配给TSS */
+#define MAX_TASKS 1000	/* maximum number of tasks */
+#define TASK_GDT0 3			/* define which GDT number to start allocating for TSS */
 #define MAX_TASKS_LV	100
 #define MAX_TASKLEVELS	10
 struct TSS32 {
@@ -207,8 +207,8 @@ struct TSS32 {
 	int ldtr, iomap;
 };
 struct TASK {
-	int sel, flags;		/* sel用来存放GDT的编号*/
-	int level, priority; /* 优先级 */
+	int sel, flags;		/* sel stores the GDT number */
+	int level, priority; /* priority */
 	struct FIFO32 fifo;
 	struct TSS32 tss;
 	struct SEGMENT_DESCRIPTOR ldt[2];
@@ -220,13 +220,13 @@ struct TASK {
 	unsigned char langmode, langbyte1;
 };
 struct TASKLEVEL {
-	int running; /*正在运行的任务数量*/
-	int now; /*这个变量用来记录当前正在运行的是哪个任务*/
+	int running; /* number of running tasks */
+	int now; /* this variable records which task is currently running */
 	struct TASK *tasks[MAX_TASKS_LV];
 };
 struct TASKCTL {
-	int now_lv; /*现在活动中的LEVEL */
-	char lv_change; /*在下次任务切换时是否需要改变LEVEL */
+	int now_lv; /* currently active LEVEL */
+	char lv_change; /* whether to change LEVEL at next task switch */
 	struct TASKLEVEL level[MAX_TASKLEVELS];
 	struct TASK tasks0[MAX_TASKS];
 };
@@ -290,7 +290,7 @@ char *file_loadfile2(int clustno, int *psize, int *fat);
 
 /* tek.c */
 int tek_getsize(unsigned char *p);
-int tek_decomp(unsigned char *p, char *q, int size);
+int tek_decomp(unsigned char *p, unsigned char *q, int size);
 
 /* bootpack.c */
 struct TASK *open_constask(struct SHEET *sht, unsigned int memtotal);

@@ -1,9 +1,9 @@
-/* 文件相关函数 */
+/* File related functions */
 
 #include "bootpack.h"
 
 void file_readfat(int *fat, unsigned char *img)
-/*将磁盘映像中的FAT解压缩 */
+/* decompress the FAT from the disk image */
 {
 	int i, j = 0;
 	for (i = 0; i < 2880; i += 2) {
@@ -43,15 +43,15 @@ struct FILEINFO *file_search(char *name, struct FILEINFO *finfo, int max)
 	}
 	j = 0;
 	for (i = 0; name[i] != 0; i++) {
-		if (j >= 11) { return 0; /*没有找到*/ }
+		if (j >= 11) { return 0; /* not found */ }
 		if (name[i] == '.' && j <= 8) {
 			j = 8;
 		} else {
 			s[j] = name[i];
 			if ('a' <= s[j] && s[j] <= 'z') {
-				/*将小写字母转换为大写字母*/
+				/* convert lowercase to uppercase */
 				s[j] -= 0x20;
-			} 
+			}
 			j++;
 		}
 	}
@@ -65,12 +65,12 @@ struct FILEINFO *file_search(char *name, struct FILEINFO *finfo, int max)
 					goto next;
 				}
 			}
-			return finfo + i; /*找到文件*/
+			return finfo + i; /* file found */
 		}
 next:
 		i++;
 	}
-	return 0; /*没有找到*/
+	return 0; /* not found */
 }
 
 char *file_loadfile2(int clustno, int *psize, int *fat)
@@ -81,10 +81,10 @@ char *file_loadfile2(int clustno, int *psize, int *fat)
 	buf = (char *) memman_alloc_4k(memman, size);
 	file_loadfile(clustno, size, buf, fat, (char *) (ADR_DISKIMG + 0x003e00));
 	if (size >= 17) {
-		size2 = tek_getsize(buf);
-		if (size2 > 0) {	/*使用tek格式压缩的文件*/
+		size2 = tek_getsize((unsigned char *) buf);
+		if (size2 > 0) {	/* file compressed with tek format */
 			buf2 = (char *) memman_alloc_4k(memman, size2);
-			tek_decomp(buf, buf2, size2);
+			tek_decomp((unsigned char *) buf, (unsigned char *) buf2, size2);
 			memman_free_4k(memman, (int) buf, size);
 			buf = buf2;
 			*psize = size2;

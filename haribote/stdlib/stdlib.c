@@ -1,8 +1,10 @@
 #include "../apilib.h"
 #include "../stdlib.h"
-
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
+
+/* Use the freestanding headers from build/haribote/ (included via -I path).
+   These provide vsprintf/va_list declarations without pulling in libc. */
 
 int putchar(int c)
 {
@@ -12,6 +14,7 @@ int putchar(int c)
 
 void exit(int status)
 {
+	(void) status;
 	api_end();
 }
 

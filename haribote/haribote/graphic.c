@@ -1,26 +1,26 @@
-/* 关于绘图部分的处理 */
+/* Drawing related processing */
 
 #include "bootpack.h"
 
 void init_palette(void)
 {
 	static unsigned char table_rgb[16 * 3] = {
-		0x00, 0x00, 0x00,	/*  0:黑 */
-		0xff, 0x00, 0x00,	/*  1:梁红 */
-		0x00, 0xff, 0x00,	/*  2:亮绿 */
-		0xff, 0xff, 0x00,	/*  3:亮黄 */
-		0x00, 0x00, 0xff,	/*  4:亮蓝 */
-		0xff, 0x00, 0xff,	/*  5:亮紫 */
-		0x00, 0xff, 0xff,	/*  6:浅亮蓝 */
-		0xff, 0xff, 0xff,	/*  7:白 */
-		0xc6, 0xc6, 0xc6,	/*  8:亮灰 */
-		0x84, 0x00, 0x00,	/*  9:暗红 */
-		0x00, 0x84, 0x00,	/* 10:暗绿 */
-		0x84, 0x84, 0x00,	/* 11:暗黄 */
-		0x00, 0x00, 0x84,	/* 12:暗青 */
-		0x84, 0x00, 0x84,	/* 13:暗紫 */
-		0x00, 0x84, 0x84,	/* 14:浅暗蓝 */
-		0x84, 0x84, 0x84	/* 15:暗灰 */
+		0x00, 0x00, 0x00,	/*  0: black */
+		0xff, 0x00, 0x00,	/*  1: bright red */
+		0x00, 0xff, 0x00,	/*  2: bright green */
+		0xff, 0xff, 0x00,	/*  3: bright yellow */
+		0x00, 0x00, 0xff,	/*  4: bright blue */
+		0xff, 0x00, 0xff,	/*  5: bright purple */
+		0x00, 0xff, 0xff,	/*  6: light bright blue */
+		0xff, 0xff, 0xff,	/*  7: white */
+		0xc6, 0xc6, 0xc6,	/*  8: bright gray */
+		0x84, 0x00, 0x00,	/*  9: dark red */
+		0x00, 0x84, 0x00,	/* 10: dark green */
+		0x84, 0x84, 0x00,	/* 11: dark yellow */
+		0x00, 0x00, 0x84,	/* 12: dark cyan */
+		0x84, 0x00, 0x84,	/* 13: dark purple */
+		0x00, 0x84, 0x84,	/* 14: light dark blue */
+		0x84, 0x84, 0x84	/* 15: dark gray */
 	};
 	unsigned char table2[216 * 3];
 	int r, g, b;
@@ -41,8 +41,8 @@ void init_palette(void)
 void set_palette(int start, int end, unsigned char *rgb)
 {
 	int i, eflags;
-	eflags = io_load_eflags();	/* 记录中断许可标志的值 */
-	io_cli(); 					/* 将中断许可标志置为0,禁止中断 */
+	eflags = io_load_eflags();	/* record the interrupt enable flag value */
+	io_cli(); 					/* set the interrupt enable flag to 0, disable interrupts */
 	io_out8(0x03c8, start);
 	for (i = start; i <= end; i++) {
 		io_out8(0x03c9, rgb[0] / 4);
@@ -50,7 +50,7 @@ void set_palette(int start, int end, unsigned char *rgb)
 		io_out8(0x03c9, rgb[2] / 4);
 		rgb += 3;
 	}
-	io_store_eflags(eflags);	/* 复原中断许可标志 */
+	io_store_eflags(eflags);	/* restore the interrupt enable flag */
 	return;
 }
 
@@ -64,7 +64,7 @@ void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, i
 	return;
 }
 
-void init_screen8(char *vram, int x, int y)
+void init_screen8(unsigned char *vram, int x, int y)
 {
 	boxfill8(vram, x, COL8_008484,  0,     0,      x -  1, y - 29);
 	boxfill8(vram, x, COL8_C6C6C6,  0,     y - 28, x -  1, y - 28);
@@ -85,10 +85,10 @@ void init_screen8(char *vram, int x, int y)
 	return;
 }
 
-void putfont8(char *vram, int xsize, int x, int y, char c, char *font)
+void putfont8(unsigned char *vram, int xsize, int x, int y, char c, char *font)
 {
 	int i;
-	char *p, d /* data */;
+	unsigned char *p, d /* data */;
 	for (i = 0; i < 16; i++) {
 		p = vram + (y + i) * xsize + x;
 		d = font[i];
@@ -104,7 +104,7 @@ void putfont8(char *vram, int xsize, int x, int y, char c, char *font)
 	return;
 }
 
-void putfonts8_asc(char *vram, int xsize, int x, int y, char c, unsigned char *s)
+void putfonts8_asc(unsigned char *vram, int xsize, int x, int y, char c, unsigned char *s)
 {
 	extern char hankaku[4096];
 	struct TASK *task = task_now();
@@ -141,8 +141,8 @@ void putfonts8_asc(char *vram, int xsize, int x, int y, char c, unsigned char *s
 				}
 				task->langbyte1 = 0;
 				font = nihongo + 256 * 16 + (k * 94 + t) * 32;
-				putfont8(vram, xsize, x - 8, y, c, font     );	/* 左半部分 */
-				putfont8(vram, xsize, x    , y, c, font + 16);	/* 右半部分 */
+				putfont8(vram, xsize, x - 8, y, c, font     );	/* left half */
+				putfont8(vram, xsize, x    , y, c, font + 16);	/* right half */
 			}
 			x += 8;
 		}
@@ -160,8 +160,8 @@ void putfonts8_asc(char *vram, int xsize, int x, int y, char c, unsigned char *s
 				t = *s - 0xa1;
 				task->langbyte1 = 0;
 				font = nihongo + 256 * 16 + (k * 94 + t) * 32;
-				putfont8(vram, xsize, x - 8, y, c, font     );	/* 左半部分 */
-				putfont8(vram, xsize, x    , y, c, font + 16);	/* 右半部分 */
+				putfont8(vram, xsize, x - 8, y, c, font     );	/* left half */
+				putfont8(vram, xsize, x    , y, c, font + 16);	/* right half */
 			}
 			x += 8;
 		}
@@ -169,8 +169,8 @@ void putfonts8_asc(char *vram, int xsize, int x, int y, char c, unsigned char *s
 	return;
 }
 
-void init_mouse_cursor8(char *mouse, char bc)
-/* 鼠标的数据准备（16x16） */
+void init_mouse_cursor8(unsigned char *mouse, char bc)
+/* mouse data preparation (16x16) */
 {
 	static char cursor[16][16] = {
 		"**************..",
@@ -208,8 +208,8 @@ void init_mouse_cursor8(char *mouse, char bc)
 	return;
 }
 
-void putblock8_8(char *vram, int vxsize, int pxsize,
-	int pysize, int px0, int py0, char *buf, int bxsize)
+void putblock8_8(unsigned char *vram, int vxsize, int pxsize,
+	int pysize, int px0, int py0, unsigned char *buf, int bxsize)
 {
 	int x, y;
 	for (y = 0; y < pysize; y++) {

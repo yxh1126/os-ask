@@ -6,8 +6,8 @@ void HariMain(void)
 	char c, cmdline[30], *p;
 
 	api_cmdline(cmdline, 30);
-	for (p = cmdline; *p > ' '; p++) { }	/*跳过之前的内容，直到遇到空格*/
-	for (; *p == ' '; p++) { }	/*跳过空格*/
+	for (p = cmdline; *p > ' '; p++) { }	/* Skip until a space */
+	for (; *p == ' '; p++) { }	/* Skip spaces */
 	fh = api_fopen(p);
 	if (fh != 0) {
 		for (;;) {

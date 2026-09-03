@@ -34,9 +34,9 @@ int tek_getsize(unsigned char *p)
 		size = tek_getnum_s7s(&p);
 	}
 	return size;
-}	  /* （注）memcmp和strncmp差不多，这个函数忽略字符串中的0并一直比较到指定的15个字符为止*/
+}	  /* (note) memcmp is similar to strncmp; this function ignores 0 in strings and compares up to the specified 15 characters */
 
-int tek_decomp(unsigned char *p, char *q, int size)
+int tek_decomp(unsigned char *p, unsigned char *q, int size)
 {
 	int err = -1;
 	if (*p == 0x83) {
@@ -47,15 +47,16 @@ int tek_decomp(unsigned char *p, char *q, int size)
 		err = tek_decode5(size, p, q);
 	}
 	if (err != 0) {
-		return -1; /*失败*/
+		return -1; /* failure */
 	}
-	return 0;	/*成功*/
+	return 0;	/* success */
 }
 
 static int tek_lzrestore_stk1(int srcsiz, UCHAR *src, int outsiz, UCHAR *q)
 {
 	int by, lz, cp, ds;
 	UCHAR *q1 = q + outsiz, *s7ptr = src, *q0 = q;
+	(void) srcsiz;
 	do {
 		if ((by = (lz = *s7ptr++) & 0x0f) == 0)
 			by = tek_getnum_s7s(&s7ptr);
@@ -135,6 +136,7 @@ static int tek_lzrestore_stk2(int srcsiz, UCHAR *src, int outsiz, UCHAR *q)
 {
 	int cp, ds, repdis[4], i, j;
 	UCHAR *q1 = q + outsiz, *s7ptr = src, *q0 = q, bylz, cbylz;
+	(void) srcsiz;
 	for (j = 0; j < 4; j++)
 		repdis[j] = -1 - j;
 	bylz = cbylz = 0;
@@ -231,7 +233,7 @@ static int tek_decode2(int siz, UCHAR *p, UCHAR *q)
 		if (dsiz > bsiz || (hed & 0x21) != 0x01)
 			return 1;
 		if (hed & 0x40)
-			tek_getnum_s7s(&p); /* �I�v�V�������ւ̃|�C���^��ǂݔ�΂� */
+			tek_getnum_s7s(&p); /* skip optional pointer parameter */
 		st = tek_lzrestore_stk2(p1 - p, p, dsiz, q);
 	}
 	return st;
@@ -242,6 +244,7 @@ static int tek_decmain5(int *work, UCHAR *src, int osiz, UCHAR *q, int lc, int p
 static int tek_lzrestore_tek5(int srcsiz, UCHAR *src, int outsiz, UCHAR *outbuf)
 {
 	int wrksiz, lc, lp, pb, flags, *work, prop0, fl;
+	(void) srcsiz;
 
 	if ((fl = (prop0 = *src) & 0x0f) == 0x01) /* 0001 */
 		flags |= -1;
@@ -278,7 +281,7 @@ static int tek_lzrestore_tek5(int srcsiz, UCHAR *src, int outsiz, UCHAR *outbuf)
 		lp = pb;
 		pb = wrksiz;
 	}
-	wrksiz = 0x180 * sizeof (UINT32) + (0x840 + (0x300 << (lc + lp))) * sizeof (tek_TPRB); /* �Œ�15KB, lc+lp=3�Ȃ�A36KB */
+	wrksiz = 0x180 * sizeof (UINT32) + (0x840 + (0x300 << (lc + lp))) * sizeof (tek_TPRB); /* minimum 15KB, 36KB if lc+lp=3 */
 	work = (int *) memman_alloc_4k((struct MEMMAN *) MEMMAN_ADDR, wrksiz);
 	if (work == NULL)
 		return -1;
@@ -320,10 +323,10 @@ static void tek_setbm5(struct tek_STR_BITMODEL *bm, int t, int m)
 {
 	bm->t = t;
 	bm->m = m;
-	bm->prb1 = -1 << (m + t);
+	bm->prb1 = ~0u << (m + t);
 	bm->prb0 = ~bm->prb1;
-	bm->prb1 |= 1 << t;
-	bm->tmsk = (-1 << t) & 0xffff;
+	bm->prb1 |= 1u << t;
+	bm->tmsk = (~0u << t) & 0xffff;
 	bm->prb0 &= bm->tmsk;
 	bm->prb1 &= bm->tmsk;
 	bm->ntm = ~bm->tmsk;
@@ -457,16 +460,16 @@ static int tek_decmain5(int *work, UCHAR *src, int osiz, UCHAR *q, int lc, int p
 	for (i = sizeof (struct tek_STR_PRB) / sizeof (tek_TPRB) + (0x300 << (lc + lp)) - 2; i >= 0; i--)
 		((tek_TPRB *) prb)[i] = 1 << 15;
 	for (i = 0; i < 32; i++) {
-		rd->bm[i].lt = (i >= 4); /* 0..3�͎����Ȃ� */
+		rd->bm[i].lt = (i >= 4); /* 0..3 are not used */
 		rd->bm[i].lt0 = (i < 24) ? 16 * 1024 : 8 * 1024;
 		rd->bm[i].s &= 0;
 		rd->bm[i].t = rd->bm[i].m = 5;
 	}
 	lit1 = prb->lit + ((256 << (lc + lp)) - 2);
 	if (stk) {
-		rd->rmsk = -1 << 11;
+		rd->rmsk = ~0u << 11;
 		for (i = 0; i < 32; i++)
-			rd->bm[i].lt = 0; /* �S�Ď����Ȃ� */
+			rd->bm[i].lt = 0; /* all are not used */
 		for (i = 0; i < 14; i++)
 			rd->ptbm[i] = &rd->bm[0];
 	} else {
@@ -493,7 +496,7 @@ static int tek_decmain5(int *work, UCHAR *src, int osiz, UCHAR *q, int lc, int p
 		rd->bm[22].t = 0; rd->bm[22].m = 1;
 		prb->repg3 = 0xffff;
 		if (flags == -2) { /* z1 */
-			rd->bm[22].lt = 0; /* repg3��lt��0�� */
+			rd->bm[22].lt = 0; /* repg3 lt is 0 */
 			for (i = 0; i < 14; i++)
 				pt[i] = pt1[i];
 		} else {

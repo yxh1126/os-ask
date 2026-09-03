@@ -1,79 +1,80 @@
-OBJS_BOOTPACK = bootpack.obj naskfunc.obj hankaku.obj graphic.obj dsctbl.obj \
-		int.obj fifo.obj keyboard.obj mouse.obj memory.obj sheet.obj timer.obj \
-		mtask.obj window.obj console.obj file.obj tek.obj
+# Makefile for Haribote OS kernel (haribote/)
+# Builds on Ubuntu using nasm + gcc -m32 + ld.
 
-TOOLPATH = ../../z_tools/
-INCPATH  = ../../z_tools/haribote/
+# --- Tools ---
+NASM      = nasm
+CC        = gcc
+LD        = ld
+OBJCOPY   = objcopy
+COPY      = cp
+DEL       = rm -f
 
-MAKE     = $(TOOLPATH)make.exe -r
-NASK     = $(TOOLPATH)nask.exe
-CC1      = $(TOOLPATH)cc1.exe -I$(INCPATH) -Os -Wall -quiet
-GAS2NASK = $(TOOLPATH)gas2nask.exe -a
-OBJ2BIM  = $(TOOLPATH)obj2bim.exe
-MAKEFONT = $(TOOLPATH)makefont.exe
-BIN2OBJ  = $(TOOLPATH)bin2obj.exe
-BIM2HRB  = $(TOOLPATH)bim2hrb.exe
-RULEFILE = ../haribote.rul
-EDIMG    = $(TOOLPATH)edimg.exe
-IMGTOL   = $(TOOLPATH)imgtol.com
-GOLIB    = $(TOOLPATH)golib00.exe 
-COPY     = copy
-DEL      = del
+BUILD     = ../build/
+INCPATH   = ../build/haribote/
 
-#默认动作
+# --- Flags ---
+CFLAGS   = -m32 -ffreestanding -fno-pic -fno-pie -fno-stack-protector \
+           -fno-builtin -fno-exceptions -nostdlib -nostdinc \
+           -fno-asynchronous-unwind-tables -Wall -Wextra -O2 \
+           -Wno-array-bounds \
+           -I$(INCPATH) -I../
+# -Wno-array-bounds: gcc -O2 mis-reports fixed MMIO address casts
+# (e.g. (struct BOOTINFO *)0x0ff0, (int *)0x0fe4) as zero-size array
+# accesses. These are legitimate bare-metal memory-mapped locations.
+NASMFLAGS_ELF = -f elf32
+NASMFLAGS_BIN = -f bin -w-zeroing
+# -w-zeroing: suppress "uninitialized space in .text" for RESB in boot
+# sector and GDT alignment — these are intentional zero-fill placeholders.
 
-default :
-	$(MAKE) ipl10.bin
-	$(MAKE) haribote.sys
+# --- Kernel object files ---
+OBJS_BOOTPACK = bootpack.o naskfunc.o hankaku.o graphic.o dsctbl.o \
+               int.o fifo.o keyboard.o mouse.o memory.o sheet.o timer.o \
+               mtask.o window.o console.o file.o tek.o
 
-# 镜像文件生成
+# --- Default ---
+default: ipl10.bin haribote.sys
 
-ipl10.bin : ipl10.nas Makefile
-	$(NASK) ipl10.nas ipl10.bin ipl10.lst
+# --- Boot sector (flat binary) ---
+ipl10.bin: ipl10.nas Makefile
+	$(NASM) $(NASMFLAGS_BIN) ipl10.nas -o ipl10.bin
 
-asmhead.bin : asmhead.nas Makefile
-	$(NASK) asmhead.nas asmhead.bin asmhead.lst
+# --- asmhead (flat binary, part of haribote.sys) ---
+asmhead.bin: asmhead.nas Makefile
+	$(NASM) $(NASMFLAGS_BIN) asmhead.nas -o asmHead.bin
+	mv asmHead.bin asmhead.bin
 
-hankaku.bin : hankaku.txt Makefile
-	$(MAKEFONT) hankaku.txt hankaku.bin
+# --- Font data ---
+hankaku.bin: hankaku.txt $(BUILD)makefont.py
+	python3 $(BUILD)makefont.py hankaku.txt hankaku.bin
 
-hankaku.obj : hankaku.bin Makefile
-	$(BIN2OBJ) hankaku.bin hankaku.obj _hankaku
+hankaku.o: hankaku.bin Makefile
+	$(OBJCOPY) -I binary -O elf32-i386 -B i386 \
+		--redefine-sym _binary_hankaku_bin_start=hankaku \
+		--redefine-sym _binary_hankaku_bin_end=hankaku_end \
+		--redefine-sym _binary_hankaku_bin_size=hankaku_size \
+		hankaku.bin hankaku.o
 
-bootpack.bim : $(OBJS_BOOTPACK) Makefile
-	$(OBJ2BIM) @$(RULEFILE) out:bootpack.bim stack:3136k map:bootpack.map \
-		$(OBJS_BOOTPACK)
-# 3MB+64KB=3136KB
+# --- Assembly (.nas -> .o, ELF) ---
+%.o: %.nas Makefile
+	$(NASM) $(NASMFLAGS_ELF) $< -o $@
 
-bootpack.hrb : bootpack.bim Makefile
-	$(BIM2HRB) bootpack.bim bootpack.hrb 0
+# --- C source (.c -> .o) ---
+%.o: %.c bootpack.h Makefile
+	$(CC) $(CFLAGS) -c $< -o $@
 
-haribote.sys : asmhead.bin bootpack.hrb Makefile
-	copy /B asmhead.bin+bootpack.hrb haribote.sys
+# --- Link kernel -> bootpack.hrb ---
+bootpack.hrb: $(OBJS_BOOTPACK) $(BUILD)hrb.ld $(BUILD)libc.o Makefile
+	$(LD) -m elf_i386 -T $(BUILD)hrb.ld -o $@ \
+		$(OBJS_BOOTPACK) $(BUILD)libc.o
 
-# 其他指令
+# --- System image ---
+haribote.sys: asmhead.bin bootpack.hrb Makefile
+	cat asmhead.bin bootpack.hrb > haribote.sys
 
-%.gas : %.c bootpack.h Makefile
-	$(CC1) -o $*.gas $*.c
+# --- Clean ---
+clean:
+	-$(DEL) *.o *.bin *.hrb *.sys *.lst *.map
 
-%.nas : %.gas Makefile
-	$(GAS2NASK) $*.gas $*.nas
-
-%.obj : %.nas Makefile
-	$(NASK) $*.nas $*.obj $*.lst
-
-# 运行程序
-
-clean :
-	-$(DEL) asmhead.bin
-	-$(DEL) hankaku.bin
-	-$(DEL) *.lst
-	-$(DEL) *.obj
-	-$(DEL) *.map
-	-$(DEL) *.bim
-	-$(DEL) *.hrb
-
-src_only :
+src_only:
 	$(MAKE) clean
-	-$(DEL) ipl10.bin
-	-$(DEL) haribote.sys
+	-$(DEL) ipl10.bin haribote.sys

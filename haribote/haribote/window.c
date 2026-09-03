@@ -1,4 +1,4 @@
-/* 窗口相关函数 */
+/* window-related functions */
 
 #include "bootpack.h"
 
@@ -37,6 +37,7 @@ void make_wtitle8(unsigned char *buf, int xsize, char *title, char act)
 	};
 	int x, y;
 	char c, tc, tbc;
+	unsigned char uc;
 	if (act != 0) {
 		tc = COL8_FFFFFF;
 		tbc = COL8_000084;
@@ -45,15 +46,15 @@ void make_wtitle8(unsigned char *buf, int xsize, char *title, char act)
 		tbc = COL8_848484;
 	}
 	boxfill8(buf, xsize, tbc, 3, 3, xsize - 4, 20);
-	putfonts8_asc(buf, xsize, 24, 4, tc, title);
+	putfonts8_asc(buf, xsize, 24, 4, tc, (unsigned char *) title);
 	for (y = 0; y < 14; y++) {
 		for (x = 0; x < 16; x++) {
-			c = closebtn[y][x];
-			if (c == '@') {
+			uc = closebtn[y][x];
+			if (uc == '@') {
 				c = COL8_000000;
-			} else if (c == '$') {
+			} else if (uc == '$') {
 				c = COL8_848484;
-			} else if (c == 'Q') {
+			} else if (uc == 'Q') {
 				c = COL8_C6C6C6;
 			} else {
 				c = COL8_FFFFFF;
@@ -69,10 +70,10 @@ void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, i
 	struct TASK *task = task_now();
 	boxfill8(sht->buf, sht->bxsize, b, x, y, x + l * 8 - 1, y + 15);
 	if (task->langmode != 0 && task->langbyte1 != 0) {
-		putfonts8_asc(sht->buf, sht->bxsize, x, y, c, s);
+		putfonts8_asc(sht->buf, sht->bxsize, x, y, c, (unsigned char *) s);
 		sheet_refresh(sht, x - 8, y, x + l * 8, y + 16);
 	} else {
-		putfonts8_asc(sht->buf, sht->bxsize, x, y, c, s);
+		putfonts8_asc(sht->buf, sht->bxsize, x, y, c, (unsigned char *) s);
 		sheet_refresh(sht, x, y, x + l * 8, y + 16);
 	}
 	return;
@@ -96,7 +97,7 @@ void make_textbox8(struct SHEET *sht, int x0, int y0, int sx, int sy, int c)
 void change_wtitle8(struct SHEET *sht, char act)
 {
 	int x, y, xsize = sht->bxsize;
-	char c, tc_new, tbc_new, tc_old, tbc_old, *buf = sht->buf;
+	unsigned char c, tc_new, tbc_new, tc_old, tbc_old, *buf = sht->buf;
 	if (act != 0) {
 		tc_new  = COL8_FFFFFF;
 		tbc_new = COL8_000084;

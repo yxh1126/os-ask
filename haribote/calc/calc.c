@@ -3,7 +3,7 @@
 
 #define INVALID		-0x7fffffff
 
-int strtol(char *s, char **endp, int base);	/* 标准函数 <stdlib.h> */
+int strtol(char *s, char **endp, int base);	/* standard function <stdlib.h> */
 
 char *skipspace(char *p);
 int getnum(char **pp, int priority);
@@ -14,7 +14,7 @@ void HariMain(void)
 	char s[30], *p;
 
 	api_cmdline(s, 30);
-	for (p = s; *p > ' '; p++) { }	/* 一直读到空格为止 */
+	for (p = s; *p > ' '; p++) { }	/* skip until a space */
 	i = getnum(&p, 9);
 	if (i == INVALID) {
 		api_putstr0("error!\n");
@@ -27,7 +27,7 @@ void HariMain(void)
 
 char *skipspace(char *p)
 {
-	for (; *p == ' '; p++) { }	/* 将空格跳过去 */
+	for (; *p == ' '; p++) { }	/* skip spaces */
 	return p;
 }
 
@@ -37,7 +37,7 @@ int getnum(char **pp, int priority)
 	int i = INVALID, j;
 	p = skipspace(p);
 
-	/*单项运算符*/
+	/* unary operators */
 	if (*p == '+') {
 		p = skipspace(p + 1);
 		i = getnum(&p, 0);
@@ -53,7 +53,7 @@ int getnum(char **pp, int priority)
 		if (i != INVALID) {
 			i = ~i;
 		}
-	} else if (*p == '(') { /*括号*/
+	} else if (*p == '(') { /* parentheses */
 		p = skipspace(p + 1);
 		i = getnum(&p, 9);
 		if (*p == ')') {
@@ -61,13 +61,13 @@ int getnum(char **pp, int priority)
 		} else {
 			i = INVALID;
 		}
-	} else if ('0' <= *p && *p <= '9') { /*数值*/
+	} else if ('0' <= *p && *p <= '9') { /* numeric value */
 		i = strtol(p, &p, 0);
-	} else { /*错误 */
+	} else { /* error */
 		i = INVALID;
 	}
 
-	/*二项运算符*/
+	/* binary operators */
 	for (;;) {
 		if (i == INVALID) {
 			break;

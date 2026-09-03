@@ -1,83 +1,83 @@
 ; haribote-ipl
 ; TAB=4
 
-CYLS	EQU		20				; どこまで読み込むか
+CYLS	EQU		20				; how many cylinders to read
 
-		ORG		0x7c00			; このプログラムがどこに読み込まれるのか
+		ORG		0x7c00			; where this program is loaded
 
-; 以下は標準的なFAT12フォーマットフロッピーディスクのための記述
+; Standard FAT12 floppy disk format description
 
 		JMP		entry
 		DB		0x90
-		DB		"HARIBOTE"		; ブートセクタの名前を自由に書いてよい（8バイト）
-		DW		512				; 1セクタの大きさ（512にしなければいけない）
-		DB		1				; クラスタの大きさ（1セクタにしなければいけない）
-		DW		1				; FATがどこから始まるか（普通は1セクタ目からにする）
-		DB		2				; FATの個数（2にしなければいけない）
-		DW		224				; ルートディレクトリ領域の大きさ（普通は224エントリにする）
-		DW		2880			; このドライブの大きさ（2880セクタにしなければいけない）
-		DB		0xf0			; メディアのタイプ（0xf0にしなければいけない）
-		DW		9				; FAT領域の長さ（9セクタにしなければいけない）
-		DW		18				; 1トラックにいくつのセクタがあるか（18にしなければいけない）
-		DW		2				; ヘッドの数（2にしなければいけない）
-		DD		0				; パーティションを使ってないのでここは必ず0
-		DD		2880			; このドライブ大きさをもう一度書く
-		DB		0,0,0x29		; よくわからないけどこの値にしておくといいらしい
-		DD		0xffffffff		; たぶんボリュームシリアル番号
-		DB		"HARIBOTEOS "	; ディスクの名前（11バイト）
-		DB		"FAT12   "		; フォーマットの名前（8バイト）
-		RESB	18				; とりあえず18バイトあけておく
+		DB		"HARIBOTE"		; boot sector name (8 bytes, can be anything)
+		DW		512				; sector size (must be 512)
+		DB		1				; cluster size (must be 1 sector)
+		DW		1				; where FAT starts (usually from sector 1)
+		DB		2				; number of FATs (must be 2)
+		DW		224				; root directory size (usually 224 entries)
+		DW		2880			; drive size (must be 2880 sectors)
+		DB		0xf0			; media type (must be 0xf0)
+		DW		9				; FAT area length (must be 9 sectors)
+		DW		18				; sectors per track (must be 18)
+		DW		2				; number of heads (must be 2)
+		DD		0				; no partition, must be 0
+		DD		2880			; write drive size again
+		DB		0,0,0x29		; unknown but should be set to this value
+		DD		0xffffffff		; probably volume serial number
+		DB		"HARIBOTEOS "	; disk name (11 bytes)
+		DB		"FAT12   "		; format name (8 bytes)
+		RESB	18				; reserve 18 bytes for now
 
-; プログラム本体
+; Program body
 
 entry:
-		MOV		AX,0			; レジスタ初期化
+		MOV		AX,0			; initialize registers
 		MOV		SS,AX
 		MOV		SP,0x7c00
 		MOV		DS,AX
 
-; ディスクを読む
+; Read disk
 
 		MOV		AX,0x0820
 		MOV		ES,AX
-		MOV		CH,0			; シリンダ0
-		MOV		DH,0			; ヘッド0
-		MOV		CL,2			; セクタ2
+		MOV		CH,0			; cylinder 0
+		MOV		DH,0			; head 0
+		MOV		CL,2			; sector 2
 readloop:
-		MOV		SI,0			; 失敗回数を数えるレジスタ
+		MOV		SI,0			; count failures
 retry:
-		MOV		AH,0x02			; AH=0x02 : ディスク読み込み
-		MOV		AL,1			; 1セクタ
+		MOV		AH,0x02			; AH=0x02: disk read
+		MOV		AL,1			; 1 sector
 		MOV		BX,0
-		MOV		DL,0x00			; Aドライブ
-		INT		0x13			; ディスクBIOS呼び出し
-		JNC		next			; エラーがおきなければnextへ
-		ADD		SI,1			; SIに1を足す
-		CMP		SI,5			; SIと5を比較
-		JAE		error			; SI >= 5 だったらerrorへ
+		MOV		DL,0x00			; drive A
+		INT		0x13			; call disk BIOS
+		JNC		next			; if no error, go to next
+		ADD		SI,1			; increment SI
+		CMP		SI,5			; compare SI with 5
+		JAE		error			; if SI >= 5, go to error
 		MOV		AH,0x00
-		MOV		DL,0x00			; Aドライブ
-		INT		0x13			; ドライブのリセット
+		MOV		DL,0x00			; drive A
+		INT		0x13			; reset drive
 		JMP		retry
 next:
-		MOV		AX,ES			; アドレスを0x200進める
+		MOV		AX,ES			; advance address by 0x200
 		ADD		AX,0x0020
-		MOV		ES,AX			; ADD ES,0x020 という命令がないのでこうしている
-		ADD		CL,1			; CLに1を足す
-		CMP		CL,18			; CLと18を比較
-		JBE		readloop		; CL <= 18 だったらreadloopへ
+		MOV		ES,AX			; no "ADD ES,0x020" instruction, so do this
+		ADD		CL,1			; increment CL
+		CMP		CL,18			; compare CL with 18
+		JBE		readloop		; if CL <= 18, go to readloop
 		MOV		CL,1
 		ADD		DH,1
 		CMP		DH,2
-		JB		readloop		; DH < 2 だったらreadloopへ
+		JB		readloop		; if DH < 2, go to readloop
 		MOV		DH,0
 		ADD		CH,1
 		CMP		CH,CYLS
-		JB		readloop		; CH < CYLS だったらreadloopへ
+		JB		readloop		; if CH < CYLS, go to readloop
 
-; 読み終わったのでharibote.sysを実行だ！
+; Reading done, now execute haribote.sys!
 
-		MOV		[0x0ff0],CH		; IPLがどこまで読んだのかをメモ
+		MOV		[0x0ff0],CH		; record how far IPL read
 		JMP		0xc200
 
 error:
@@ -86,22 +86,22 @@ error:
 		MOV		SI,msg
 putloop:
 		MOV		AL,[SI]
-		ADD		SI,1			; SIに1を足す
+		ADD		SI,1			; increment SI
 		CMP		AL,0
 		JE		fin
-		MOV		AH,0x0e			; 一文字表示ファンクション
-		MOV		BX,15			; カラーコード
-		INT		0x10			; ビデオBIOS呼び出し
+		MOV		AH,0x0e			; display one character function
+		MOV		BX,15			; color code
+		INT		0x10			; call video BIOS
 		JMP		putloop
 fin:
-		HLT						; 何かあるまでCPUを停止させる
-		JMP		fin				; 無限ループ
+		HLT						; halt CPU until something happens
+		JMP		fin				; infinite loop
 msg:
-		DB		0x0a, 0x0a		; 改行を2つ
+		DB		0x0a, 0x0a		; two newlines
 		DB		"load error"
-		DB		0x0a			; 改行
+		DB		0x0a			; newline
 		DB		0
 
-		RESB	0x7dfe-$		; 0x7dfeまでを0x00で埋める命令
+		RESB	0x7dfe-$		; fill with 0x00 up to 0x7dfe
 
 		DB		0x55, 0xaa

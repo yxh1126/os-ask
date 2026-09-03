@@ -18,9 +18,9 @@ void HariMain(void)
 	api_boxfilwin(win, 8, 29, 207, 228, 0);
 	for (i = 0; i <= 14; i++) {
 		for (j = i + 1; j <= 15; j++) {
-			dis = j - i; /*两点间的距离*/
+			dis = j - i; /* distance between two points */
 			if (dis >= 8) {
-				dis = 15 - dis; /*逆向计数*/
+				dis = 15 - dis; /* count in reverse */
 			}
 			if (dis != 0) {
 				api_linewin(win, table[i].x, table[i].y, table[j].x, table[j].y, 8 - dis);
@@ -30,7 +30,7 @@ void HariMain(void)
 
 	for (;;) {
 		if (api_getkey(1) == 0x0a) {
-			break; /*按下回车键则break; */
+			break; /* break on Enter key press; */
 		}
 	}
 	api_end();

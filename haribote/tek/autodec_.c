@@ -527,7 +527,7 @@ static int tek_decmain5(int *work, UCHAR *src, int osiz, UCHAR *q, int lc, int p
 				*q = tek_rdget1(rd, &prb->lit[i], lit0cntmsk, 1, &rd->bm[24]) & 0xff;
 			else {
 				struct tek_STR_BITMODEL *bm = &rd->bm[24];
-				j = 1; /* lit1‚ÍÅ‰‚©‚ç2‚ðŒ¸‚¶‚Ä‚ ‚é */
+				j = 1; /* lit1: subtract 2 from the initial value */
 				k = 8;
 				pmch = q[rep[0]];
 				do {

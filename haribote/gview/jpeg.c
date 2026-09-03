@@ -142,7 +142,7 @@ int decode0_JPEG(struct DLL_STRPICENV *env,int size, UCHAR *fp0, int b_type, UCH
 
 unsigned short get_bits(JPEG *jpeg, int bit)
 {
-	unsigned char  c, c2;
+	unsigned char  c;
 	unsigned short ret;
 	unsigned long  buff;
 	int remain;
@@ -185,7 +185,7 @@ int jpeg_sof(JPEG *jpeg)
 
 	if (jpeg->fp + 8 > jpeg->fp1)
 		goto err;
-	/* fp[2] ‚Í bpp */
+	/* fp[2] is bpp */
 	jpeg->height = jpeg->fp[3] << 8 | jpeg->fp[4];
 	jpeg->width  = jpeg->fp[5] << 8 | jpeg->fp[6];
 	n = jpeg->compo_count = jpeg->fp[7]; // Num of compo, nf
@@ -218,7 +218,7 @@ err:
 int jpeg_dqt(JPEG *jpeg)
 {
 	unsigned char c;
-	int i, j, v, size;
+	int i, j, size;
 
 	if (jpeg->fp + 2 > jpeg->fp1)
 		goto err;
@@ -261,7 +261,7 @@ int jpeg_dht(JPEG *jpeg)
 	unsigned code = 0;
 	unsigned char val;
 	int i, j, k, num, Li[17];
-	int len, max_val;
+	int len;
 	HUFF *table;
 
 	if (jpeg->fp + 2 > jpeg->fp1)
@@ -527,7 +527,7 @@ int jpeg_get_value(JPEG *jpeg,int size)
 
 int jpeg_decode_huff(JPEG *jpeg,int scan,int *block, UCHAR *zigzag_table)
 {
-    int size, len, val, run, index;
+    int size, val, run, index;
     int *pQt = (int *)(jpeg->dqt[jpeg->scan_qt[scan]]);
 
     // DC
@@ -574,7 +574,7 @@ void jpeg_mcu_bitblt(int *src, int *dest, int width,
                      int x0, int y0, int x1, int y1)
 {
 	int w, h;
-	int x, y, x2, y2;
+	int x, y, y2;
 	w = x1 - x0;
 	h = y1 - y0;
 	dest += y0 * width + x0;
@@ -590,8 +590,8 @@ void jpeg_mcu_bitblt(int *src, int *dest, int width,
 
 int jpeg_decode_mcu(JPEG *jpeg, UCHAR *zigzag_table)
 {
-	int scan, val;
-	int unit, i, h, v;
+	int scan;
+	int h, v;
 	int *p, hh, vv;
 	int block[64], dest[64];
 
@@ -601,8 +601,8 @@ int jpeg_decode_mcu(JPEG *jpeg, UCHAR *zigzag_table)
 		vv = jpeg->scan_v[scan];
 		for (v = 0; v < vv; v++) {
             for (h = 0; h < hh; h++) {
-				// ƒuƒƒbƒN(8x8)‚ÌƒfƒR[ƒh
-				val = jpeg_decode_huff(jpeg, scan, block, zigzag_table);
+				// Decode block (8x8)
+				jpeg_decode_huff(jpeg, scan, block, zigzag_table);
 			//	if(val>=0x10000){
 			//		printf("marker found:%02x\n",val);
 			//	}
@@ -617,6 +617,7 @@ int jpeg_decode_mcu(JPEG *jpeg, UCHAR *zigzag_table)
 			}
 		}
 	}
+	return 0;
 }
 
 // YCrCb=>RGB
@@ -625,9 +626,8 @@ int jpeg_decode_yuv(JPEG *jpeg, int h, int v, unsigned char *rgb, int b_type)
 {
 	int x0, y0, x, y, x1, y1;
 	int *py;
-	int Y12, V;
+int Y12, V;
 	int mw, mh, w;
-	int i;
 
 	mw = jpeg->mcu_width;
 	mh = jpeg->mcu_height;
@@ -684,7 +684,7 @@ int jpeg_decode_yuv(JPEG *jpeg, int h, int v, unsigned char *rgb, int b_type)
 		py += mw - x1;
 		rgb += w;
 	}
-	return;
+	return 0;
 }
 
 #define INIT_ZTABLE(i, b0, b1, b2, b3)	*(int *) &zigzag_table[i] = b0 | b1 << 8 | b2 << 16 | b3 << 24
@@ -693,8 +693,6 @@ void jpeg_decode(JPEG *jpeg, UCHAR *rgb, int b_type)
 {
 	int h_unit, v_unit;
 	int mcu_count, h, v;
-	int val;
-	unsigned char m;
 
     UCHAR zigzag_table[64];
 

@@ -12,9 +12,9 @@ void HariMain(void)
 	api_inittimer(timer, 128);
 	for (;;) {
 		sprintf(s, "%5d:%02d:%02d", hou, min, sec);
-		api_boxfilwin(win, 28, 27, 115, 41, 7);/*白色*/
-		api_putstrwin(win, 28, 27, 0, 11, s); /*黑色*/
-		api_settimer(timer, 100);	 /* 1秒 */
+		api_boxfilwin(win, 28, 27, 115, 41, 7);/* white */
+		api_putstrwin(win, 28, 27, 0, 11, s); /* black */
+		api_settimer(timer, 100);	 /* 1 sec */
 		if (api_getkey(1) != 128) {
 			break;
 		}

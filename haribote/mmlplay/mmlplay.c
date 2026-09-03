@@ -2,7 +2,7 @@
 
 #include <string.h>	/* strlen */
 
-int strtol(char *s, char **endp, int base);	 /*标准函数<stdlib.h> */
+int strtol(char *s, char **endp, int base);	 /* standard function <stdlib.h> */
 
 void waittimer(int timer, int time);
 void end(char *s);
@@ -13,20 +13,20 @@ void HariMain(void)
 	char s[32], *p, *r;
 	int win, timer, i, j, t = 120, l = 192 / 4, o = 4, q = 7, note_old = 0;
 
-	/*音号与频率（mHz）的对照表*/
-	/*例如，04A为440Hz，即440000 */
-	/*第16八度的A为1802240Hz，即1802240000 */
-	/*以下为第16八度的列表（C～B） */
+	/* note number to frequency (mHz) mapping table */
+	/* e.g. 04A is 440Hz, i.e. 440000 */
+	/* the 16th octave A is 1802240Hz, i.e. 1802240000 */
+	/* below is the 16th octave list (C to B) */
 	static int tonetable[12] = {
 		1071618315, 1135340056, 1202850889, 1274376125, 1350154473, 1430438836,
 		1515497155, 1605613306, 1701088041, 1802240000, 1909406767, 2022946002
 	};
 	static int notetable[7] = { +9, +11, +0 /* C */, +2, +4, +5, +7 };
 
-	/*命令行解析*/
+	/* command line parsing */
 	api_cmdline(s, 30);
-	for (p = s; *p > ' '; p++) { }	/*一直读到空格为止*/
-	for (; *p == ' '; p++) { }	/*跳过空格*/
+	for (p = s; *p > ' '; p++) { }	/* skip until a space */
+	for (; *p == ' '; p++) { }	/* skip spaces */
 	i = strlen(p);
 	if (i > 12) {
 file_error:
@@ -36,13 +36,13 @@ file_error:
 		end(0);
 	}
 
-	/*准备窗口*/
+	/* window preparation */
 	win = api_openwin(winbuf, 256, 112, -1, "mmlplay");
 	api_putstrwin(win, 128, 32, 0, i, p);
 	api_boxfilwin(win, 8, 60, 247,  76, 7);
 	api_boxfilwin(win, 6, 86, 249, 105, 7);
 
-	/*载入文件*/
+	/* file loading */
 	i = api_fopen(p);
 	if (i == 0) {
 		goto file_error;
@@ -55,9 +55,9 @@ file_error:
 	api_fclose(i);
 	txtbuf[j] = 0;
 	r = txtbuf;
-	i = 0; /*通常模式*/
-	for (p = txtbuf; *p != 0; p++) {	/*为了方便处理，将注释和空白删去*/
-		if (i == 0 && *p > ' ') {	/*不是空格或换行符*/
+	i = 0; /* normal mode */
+	for (p = txtbuf; *p != 0; p++) {	/* remove comments and whitespace for easier processing */
+		if (i == 0 && *p > ' ') {	/* not a space or newline */
 			if (*p == '/') {
 				if (p[1] == '*') {
 					i = 1;
@@ -66,7 +66,7 @@ file_error:
 				} else {
 					*r = *p;
 					if ('a' <= *p && *p <= 'z') {
-						*r += 'A' - 'a';	/*将小写字母转换为大写字母*/
+						*r += 'A' - 'a';	/* convert lowercase to uppercase */
 					}
 					r++;
 				}
@@ -78,12 +78,12 @@ file_error:
 				*r = *p;
 				r++;
 			}
-		} else if (i == 1 && *p == '*' && p[1] == '/') {	/*段注释*/
+		} else if (i == 1 && *p == '*' && p[1] == '/') {	/* block comment */
 			p++;
 			i = 0;
-		} else if (i == 2 && *p == 0x0a) {	/*行注释*/
+		} else if (i == 2 && *p == 0x0a) {	/* line comment */
 			i = 0;
-		} else if (i == 3) {	/*字符串*/
+		} else if (i == 3) {	/* string */
 			*r = *p;
 			r++;
 			if (*p == 0x22) {
@@ -97,15 +97,15 @@ file_error:
 	}
 	*r = 0;
 
-	/*定时器准备*/
+	/* timer preparation */
 	timer = api_alloctimer();
 	api_inittimer(timer, 128);
 
-	/*主体*/
+	/* main body */
 	p = txtbuf;
 	for (;;) {
-		if (('A' <= *p && *p <= 'G') || *p == 'R') {	/*音符、休止符*/
-			/*计算频率*/
+		if (('A' <= *p && *p <= 'G') || *p == 'R') {	/* note, rest */
+			/* calculate frequency */
 			if (*p == 'R') {
 				i = 0;
 				s[0] = 0;
@@ -146,7 +146,7 @@ file_error:
 				}
 				note_old = i;
 			}
-			/*音长计算*/
+			/* note length calculation */
 			if ('0' <= *p && *p <= '9') {
 				i = 192 / strtol(p, &p, 10);
 			} else {
@@ -174,17 +174,17 @@ file_error:
 				}
 			}
 			waittimer(timer, i - j);
-		} else if (*p == '<') {	/*八度-- */
+		} else if (*p == '<') {	/* octave-- */
 			p++;
 			o--;
-		} else if (*p == '>') {	/*八度++ */
+		} else if (*p == '>') {	/* octave++ */
 			p++;
 			o++;
-		} else if (*p == 'O') {	/*八度指定*/
+		} else if (*p == 'O') {	/* octave specification */
 			o = strtol(p + 1, &p, 10);
-		} else if (*p == 'Q') {	/* Q参数指定*/
+		} else if (*p == 'Q') {	/* Q parameter specification */
 			q = strtol(p + 1, &p, 10);
-		} else if (*p == 'L') { /*默认音长指定*/ 
+		} else if (*p == 'L') { /* default note length specification */
 			l = strtol(p + 1, &p, 10);
 			if (l == 0) {
 				goto syntax_error;
@@ -194,10 +194,10 @@ file_error:
 				p++;
 				l += l / 2;
 			}
-		} else if (*p == 'T') {	 /*速度指定*/
+		} else if (*p == 'T') {	 /* tempo specification */
 			t = strtol(p + 1, &p, 10);
-		} else if (*p == '$') {	/*扩展命令*/
-			if (p[1] == 'K') {	/*卡拉OK命令*/
+		} else if (*p == '$') {	/* extended command */
+			if (p[1] == 'K') {	/* karaoke command */
 				p += 2;
 				for (; *p != 0x22; p++) {
 					if (*p == 0) {

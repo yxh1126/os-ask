@@ -1,13 +1,10 @@
-[FORMAT "WCOFF"]
-[INSTRSET "i486p"]
 [BITS 32]
-[FILE "hello5.nas"]
 
-		GLOBAL	_HariMain
+		GLOBAL	HariMain
 
 [SECTION .text]
 
-_HariMain:
+HariMain:
 		MOV		EDX,2
 		MOV		EBX,msg
 		INT		0x40
